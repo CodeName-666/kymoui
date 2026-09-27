@@ -4,6 +4,7 @@ import QtQuick.Layouts 1.11
 import QtQuick.Controls 6.4
 import "ChartLinesList"
 import "FloatingActionButton"
+import "../Theme"
 
 Item {
     property alias chart: chart
@@ -91,8 +92,8 @@ Item {
         width: buttonSize + 12
         height: buttonSize * 2 + 12
         radius: 6
-        color: "#CC2b2b2b"
-        border.color: "#404040"
+        color: Qt.rgba(20 / 255, 26 / 255, 36 / 255, 0.85)
+        border.color: AppTheme.borders.primary
         border.width: 1
 
         anchors.left: parent.left
@@ -130,15 +131,15 @@ Item {
                 ToolTip.delay: 400
 
                 background: Rectangle {
-                    color: parent.hovered ? "#404040" : "transparent"
+                    color: parent.hovered ? AppTheme.surfaces.muted : "transparent"
                     radius: 4
-                    border.color: parent.hovered ? "#606060" : "transparent"
+                    border.color: parent.hovered ? AppTheme.borders.subtle : "transparent"
                 }
 
                 contentItem: Text {
                     text: parent.text
                     font: parent.font
-                    color: "#ffffff"
+                    color: AppTheme.text.primary
                     horizontalAlignment: Text.AlignHCenter
                     verticalAlignment: Text.AlignVCenter
                 }
@@ -159,15 +160,15 @@ Item {
                 ToolTip.delay: 400
 
                 background: Rectangle {
-                    color: parent.hovered ? "#404040" : "transparent"
+                    color: parent.hovered ? AppTheme.surfaces.muted : "transparent"
                     radius: 4
-                    border.color: parent.hovered ? "#606060" : "transparent"
+                    border.color: parent.hovered ? AppTheme.borders.subtle : "transparent"
                 }
 
                 contentItem: Text {
                     text: parent.text
                     font: parent.font
-                    color: "#ffffff"
+                    color: AppTheme.text.primary
                     horizontalAlignment: Text.AlignHCenter
                     verticalAlignment: Text.AlignVCenter
                 }

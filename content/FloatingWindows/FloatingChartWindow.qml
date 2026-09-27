@@ -15,19 +15,20 @@
 import QtQuick 6.4
 import QtQuick.Controls 6.4
 import QtQuick.Layouts 6.4
-import Qt5Compat.GraphicalEffects
+import QtQuick.Effects
 import Common 1.0
-import Backend 1.0
+import Theme 1.0
 
 Rectangle {
     id: floatingWindow
+    objectName: "floatingChartWindow_" + chartId
 
     // Public properties
     property string chartId: ""
     property string chartTitle: "Chart"
     property string chartType: "xy_line"  // ChartType enum value
-    // Reference back to the App root (for centralized remove/cleanup)
-    property var appRoot: null
+    // The workspace owns chart state, assignments and data routing.
+    property var workspaceController: null
     // Optional: backend connection associated with this window (used for Test charts)
     property string connectionId: ""
     property bool autoDeleteConnectionOnClose: false
@@ -42,6 +43,7 @@ Rectangle {
     property bool isMaximized: false
     property int zOrder: 0
     property rect restoreGeometry: Qt.rect(100, 100, 800, 600)
+    property rect minimizeRestoreGeometry: Qt.rect(0, 0, 0, 0)
 
     // Drag state
     property bool isDragging: false
@@ -50,7 +52,7 @@ Rectangle {
     property point windowStartPos: Qt.point(0, 0)
 
     // Visual feedback during dragging
-    property color dragBorderColor: "#0078d4"
+    property color dragBorderColor: AppTheme.palette.primary
     property real dragShadowIntensity: 1.0
 
     // Docking preview
@@ -62,8 +64,8 @@ Rectangle {
     property var lastDragUpdate: Date.now()
 
     // Visual properties
-    color: "#1e1e1e"
-    border.color: isDragging ? dragBorderColor : "#3c3c3c"
+    color: AppTheme.surfaces.card
+    border.color: isDragging ? dragBorderColor : AppTheme.borders.primary
     border.width: 2
     radius: 8
     // opacity and scale removed from root to prevent jitter during dragging
@@ -164,15 +166,15 @@ Rectangle {
         NumberAnimation { duration: 200; easing.type: Easing.InOutQuad }
     }
 
-    // Window shadow (optional) - disabled during drag/resize for performance
+    // Window shadow (disabled during drag/resize for performance)
     layer.enabled: !floatingWindow.isDragging && !floatingWindow.isResizing
-    layer.effect: DropShadow {
-        horizontalOffset: 0
-        verticalOffset: 4
-        radius: 12
-        samples: 24
-        color: "#80000000"
-        transparentBorder: true
+    layer.effect: MultiEffect {
+        shadowEnabled: true
+        shadowColor: Qt.rgba(0, 0, 0, floatingWindow.isDragging ? 0.25 : 0.45)
+        shadowHorizontalOffset: 0
+        shadowVerticalOffset: floatingWindow.isDragging ? 2 : 6
+        shadowBlur: floatingWindow.isDragging ? 0.25 : 0.6
+        shadowScale: 1.0
     }
 
     ColumnLayout {
@@ -184,7 +186,7 @@ Rectangle {
             id: titleBar
             Layout.fillWidth: true
             Layout.preferredHeight: 40
-            color: "#2d2d2d"
+            color: AppTheme.surfaces.interfaceBackground
             radius: floatingWindow.radius
 
             // Drag area
@@ -211,12 +213,8 @@ Rectangle {
                     // Visual feedback: enhanced shadow only (no scale/opacity to prevent jitter)
                     floatingWindow.dragShadowIntensity = 1.3
 
-                    // Bring to front (if windowManager is available)
-                    if (typeof windowManager !== 'undefined' && windowManager !== null) {
-                        windowManager.bringToFront(floatingWindow.chartId)
-                    } else {
-                        // Fallback: increase z-order manually
-                        floatingWindow.z = 1000 + Date.now() % 1000
+                    if (floatingWindow.workspaceController) {
+                        floatingWindow.workspaceController.bringToFront(floatingWindow.chartId)
                     }
                 }
 
@@ -260,9 +258,8 @@ Rectangle {
                     // Check for docking zones
                     checkDockingZones()
 
-                    // Save window position (if windowManager is available)
-                    if (typeof windowManager !== 'undefined' && windowManager !== null) {
-                        windowManager.updateWindowPosition(
+                    if (floatingWindow.workspaceController) {
+                        floatingWindow.workspaceController.updateChartGeometry(
                             floatingWindow.chartId,
                             floatingWindow.x,
                             floatingWindow.y,
@@ -288,7 +285,7 @@ Rectangle {
                 Rectangle {
                     Layout.preferredWidth: 24
                     Layout.preferredHeight: 24
-                    color: "#0078d4"
+                    color: AppTheme.palette.primary
                     radius: 4
 
                     Text {
@@ -305,7 +302,7 @@ Rectangle {
                     text: floatingWindow.chartTitle
                     font.pixelSize: 14
                     font.bold: true
-                    color: "#ffffff"
+                    color: AppTheme.text.primary
                     elide: Text.ElideRight
                 }
 
@@ -313,7 +310,7 @@ Rectangle {
                 Text {
                     text: getChartTypeLabel(floatingWindow.chartType)
                     font.pixelSize: 11
-                    color: "#808080"
+                    color: AppTheme.text.secondary
                 }
 
                 // Minimize button
@@ -323,13 +320,19 @@ Rectangle {
                     text: "−"
                     font.pixelSize: 16
 
+                    ToolTip.visible: hovered
+                    ToolTip.text: floatingWindow.isMinimized ? qsTr("Restore chart") : qsTr("Minimize chart")
+                    ToolTip.delay: 400
+
                     onClicked: {
                         toggleMinimize()
                     }
 
                     background: Rectangle {
-                        color: parent.hovered ? "#3c3c3c" : "transparent"
+                        color: parent.hovered ? AppTheme.surfaces.muted : "transparent"
                         radius: 4
+                        border.color: parent.activeFocus ? AppTheme.borders.focus : "transparent"
+                        border.width: parent.activeFocus ? 2 : 0
                     }
                 }
 
@@ -340,13 +343,19 @@ Rectangle {
                     text: floatingWindow.isMaximized ? "◱" : "□"
                     font.pixelSize: 14
 
+                    ToolTip.visible: hovered
+                    ToolTip.text: floatingWindow.isMaximized ? qsTr("Restore chart size") : qsTr("Maximize chart")
+                    ToolTip.delay: 400
+
                     onClicked: {
                         toggleMaximize()
                     }
 
                     background: Rectangle {
-                        color: parent.hovered ? "#3c3c3c" : "transparent"
+                        color: parent.hovered ? AppTheme.surfaces.muted : "transparent"
                         radius: 4
+                        border.color: parent.activeFocus ? AppTheme.borders.focus : "transparent"
+                        border.width: parent.activeFocus ? 2 : 0
                     }
                 }
 
@@ -357,13 +366,19 @@ Rectangle {
                     text: "×"
                     font.pixelSize: 20
 
+                    ToolTip.visible: hovered
+                    ToolTip.text: qsTr("Close chart")
+                    ToolTip.delay: 400
+
                     onClicked: {
                         closeWindow()
                     }
 
                     background: Rectangle {
-                        color: parent.hovered ? "#e81123" : "transparent"
+                        color: parent.hovered ? AppTheme.palette.danger : "transparent"
                         radius: 4
+                        border.color: parent.activeFocus ? AppTheme.borders.focus : "transparent"
+                        border.width: parent.activeFocus ? 2 : 0
                     }
                 }
             }
@@ -374,7 +389,7 @@ Rectangle {
             id: chartContent
             Layout.fillWidth: true
             Layout.fillHeight: true
-            color: "#252525"
+            color: AppTheme.surfaces.interfaceBackground
             visible: !floatingWindow.isMinimized
 
             // Chart renderer will be loaded here dynamically
@@ -384,6 +399,7 @@ Rectangle {
                 anchors.margins: 8
 
                 source: getChartRendererQml(floatingWindow.chartType)
+                asynchronous: true
 
                 onLoaded: {
                     // Pass properties to the loaded chart view
@@ -393,6 +409,10 @@ Rectangle {
                         if (item.chartType !== undefined) {
                             item.chartType = floatingWindow.chartType
                         }
+                    }
+                    syncRendererState()
+                    if (floatingWindow.workspaceController) {
+                        floatingWindow.workspaceController.rendererReady(floatingWindow.chartId)
                     }
                 }
 
@@ -410,7 +430,7 @@ Rectangle {
                 anchors.centerIn: parent
                 text: "No chart loaded"
                 font.pixelSize: 16
-                color: "#808080"
+                color: AppTheme.text.placeholder
                 visible: chartLoader.status !== Loader.Ready
             }
         }
@@ -424,7 +444,7 @@ Rectangle {
         anchors.right: parent.right
         anchors.bottom: parent.bottom
         anchors.margins: 4
-        color: "#3c3c3c"
+        color: AppTheme.surfaces.muted
         radius: 2
         visible: !floatingWindow.isMinimized && !floatingWindow.isMaximized && !floatingWindow.isDocked
 
@@ -460,9 +480,8 @@ Rectangle {
             onReleased: {
                 floatingWindow.isResizing = false
 
-                // Save new size (if windowManager is available)
-                if (typeof windowManager !== 'undefined' && windowManager !== null) {
-                    windowManager.updateWindowPosition(
+                if (floatingWindow.workspaceController) {
+                    floatingWindow.workspaceController.updateChartGeometry(
                         floatingWindow.chartId,
                         floatingWindow.x,
                         floatingWindow.y,
@@ -477,8 +496,8 @@ Rectangle {
     // Docking Zone Preview Overlay
     Rectangle {
         id: dockPreviewOverlay
-        color: "#400078d4"
-        border.color: "#0078d4"
+        color: Qt.rgba(63 / 255, 183 / 255, 255 / 255, 0.25)
+        border.color: AppTheme.palette.primary
         border.width: 3
         radius: 4
         visible: floatingWindow.showDockingPreview
@@ -541,12 +560,44 @@ Rectangle {
                 }
             }
             font.pixelSize: 48
-            color: "#0078d4"
+            color: AppTheme.palette.primary
             opacity: 0.6
         }
     }
 
-    // Functions
+    // Narrow renderer port used by WorkspaceController.
+    function createSeries(uniqueId, displayName, color, interfaceType, dataId, valueField) {
+        if (!chartRenderer || !chartRenderer.createLine) return null
+        if (chartRenderer.getLine) {
+            var existing = chartRenderer.getLine(uniqueId, valueField)
+            if (existing) return existing.series || existing
+        }
+        return chartRenderer.createLine(uniqueId, displayName, color, interfaceType, dataId, valueField)
+    }
+
+    function removeSeries(uniqueId, valueField) {
+        if (!chartRenderer || !chartRenderer.removeLine) return false
+        return chartRenderer.removeLine(uniqueId, valueField)
+    }
+
+    function updateSeries(uniqueId, valueField, displayName, color, visible) {
+        if (!chartRenderer || !chartRenderer.updateLineProperties) return false
+        chartRenderer.updateLineProperties(uniqueId, valueField, displayName, color, visible)
+        return true
+    }
+
+    function appendPointsBatch(uniqueId, points) {
+        if (!chartRenderer || !chartRenderer.appendPointsBatch) return false
+        chartRenderer.appendPointsBatch(uniqueId, points)
+        return true
+    }
+
+    function appendPointsBatch3D(uniqueId, points) {
+        if (!chartRenderer || !chartRenderer.appendPointsBatch3D) return false
+        chartRenderer.appendPointsBatch3D(uniqueId, points)
+        return true
+    }
+
     function clampToParent() {
         if (!parent) return
         if (floatingWindow.isDocked || floatingWindow.isMaximized) return
@@ -571,29 +622,37 @@ Rectangle {
     }
 
     Component.onCompleted: {
+        if (floatingWindow.workspaceController) {
+            floatingWindow.workspaceController.registerWindow(floatingWindow.chartId, floatingWindow)
+        }
         clampToParent()
+        syncRendererState()
     }
+
+    onIsDraggingChanged: syncRendererState()
+    onIsResizingChanged: syncRendererState()
+    onIsMinimizedChanged: syncRendererState()
 
     function getChartTypeIcon(type) {
         switch(type) {
-            case "xy_line": return "📈"
-            case "xy_scatter": return "⚬"
-            case "time_series": return "⏱"
-            case "xyz_surface": return "🗻"
-            case "xyz_scatter": return "⬡"
-            case "bar": return "📊"
-            case "heatmap": return "🔥"
-            default: return "📊"
+            case "xy_line": return "XY"
+            case "xy_scatter": return "XY"
+            case "time_series": return "t"
+            case "xyz_surface": return "3D"
+            case "xyz_scatter": return "3D"
+            case "bar": return "B"
+            case "heatmap": return "H"
+            default: return "·"
         }
     }
 
     function getChartTypeLabel(type) {
         switch(type) {
-            case "xy_line": return "XY Line"
-            case "xy_scatter": return "XY Scatter"
-            case "time_series": return "Time Series"
-            case "xyz_surface": return "XYZ Surface"
-            case "xyz_scatter": return "XYZ Scatter"
+            case "xy_line": return qsTr("Cartesian XY · X vs Y")
+            case "xy_scatter": return qsTr("Cartesian XY points · X vs Y")
+            case "time_series": return qsTr("Time series · time vs value")
+            case "xyz_surface": return qsTr("3D surface · X/Y/Z")
+            case "xyz_scatter": return qsTr("3D points · X/Y/Z")
             case "bar": return "Bar Chart"
             case "heatmap": return "Heatmap"
             default: return "Unknown"
@@ -616,17 +675,42 @@ Rectangle {
     }
 
     function toggleMinimize() {
-        floatingWindow.isMinimized = !floatingWindow.isMinimized
-        if (floatingWindow.isMinimized) {
+        if (!floatingWindow.isMinimized) {
+            if (floatingWindow.isDocked) {
+                undock()
+            }
+            if (floatingWindow.isMaximized) {
+                floatingWindow.isMaximized = false
+                floatingWindow.x = floatingWindow.restoreGeometry.x
+                floatingWindow.y = floatingWindow.restoreGeometry.y
+                floatingWindow.width = floatingWindow.restoreGeometry.width
+                floatingWindow.height = floatingWindow.restoreGeometry.height
+            }
+            floatingWindow.minimizeRestoreGeometry = Qt.rect(floatingWindow.x, floatingWindow.y, floatingWindow.width, floatingWindow.height)
+            floatingWindow.isMinimized = true
             floatingWindow.height = titleBar.height
         } else {
-            floatingWindow.height = 600  // Restore default height
+            floatingWindow.isMinimized = false
+            var restore = floatingWindow.minimizeRestoreGeometry
+            if (restore.width <= 0 || restore.height <= 0) {
+                restore = Qt.rect(floatingWindow.x, floatingWindow.y, 800, 600)
+            }
+            floatingWindow.x = restore.x
+            floatingWindow.y = restore.y
+            floatingWindow.width = restore.width
+            floatingWindow.height = restore.height
+            clampToParent()
         }
+        syncRendererState()
+        persistWindowState()
     }
 
     function toggleMaximize() {
         if (floatingWindow.isDocked) {
             undock()
+        }
+        if (floatingWindow.isMinimized) {
+            toggleMinimize()
         }
 
         if (!floatingWindow.isMaximized) {
@@ -640,29 +724,29 @@ Rectangle {
             floatingWindow.height = floatingWindow.restoreGeometry.height
             clampToParent()
         }
+        persistWindowState()
     }
 
     function closeWindow() {
-        // Delegate to App for consistent cleanup (activeWindows, backend connection, sidebar refresh)
-        if (appRoot && typeof appRoot.removeFloatingWindow === "function") {
-            appRoot.removeFloatingWindow(floatingWindow.chartId)
-            return
+        if (floatingWindow.workspaceController) {
+            floatingWindow.workspaceController.removeChart(floatingWindow.chartId)
         }
+    }
 
-        // Fallback (should not normally happen)
-        if (chartRenderer && chartRenderer.chartLineModel) {
-            chartRenderer.chartLineModel.removeLinesByChart(floatingWindow.chartId)
+    function syncRendererState() {
+        if (chartRenderer && chartRenderer.updatesSuspended !== undefined) {
+            chartRenderer.updatesSuspended = floatingWindow.isDragging || floatingWindow.isResizing || floatingWindow.isMinimized
         }
+    }
 
-        if (parent && parent.activeWindows && parent.activeWindows[floatingWindow.chartId]) {
-            delete parent.activeWindows[floatingWindow.chartId]
-        }
-
-        if (typeof WindowManager !== "undefined" && WindowManager && WindowManager.removeWindow) {
-            WindowManager.removeWindow(floatingWindow.chartId)
-        }
-
-        floatingWindow.destroy()
+    function persistWindowState() {
+        if (!floatingWindow.workspaceController) return
+        floatingWindow.workspaceController.updateChartWindowState(
+            floatingWindow.chartId,
+            floatingWindow.isMinimized,
+            floatingWindow.isMaximized,
+            floatingWindow.restoreGeometry
+        )
     }
 
     function checkDockingZonesPreview() {
@@ -682,12 +766,12 @@ Rectangle {
         if (minDist > dockThreshold) {
             floatingWindow.showDockingPreview = false
             floatingWindow.previewDockPosition = ""
-            floatingWindow.dragBorderColor = "#0078d4"
+            floatingWindow.dragBorderColor = AppTheme.palette.primary
             return
         }
 
         floatingWindow.showDockingPreview = true
-        floatingWindow.dragBorderColor = "#00d455"  // Grün für gültige Zone
+        floatingWindow.dragBorderColor = AppTheme.palette.success
 
         if (minDist === leftDist) {
             floatingWindow.previewDockPosition = "left"
@@ -736,11 +820,9 @@ Rectangle {
         floatingWindow.dockPosition = edge
         floatingWindow.isMaximized = false
 
-        // Notify windowManager (if available)
-        if (typeof windowManager !== 'undefined' && windowManager !== null) {
-            var parentWidth = parent.width
-            var parentHeight = parent.height
-            windowManager.dockWindow(floatingWindow.chartId, edge, parentWidth, parentHeight)
+        if (floatingWindow.workspaceController) {
+            floatingWindow.workspaceController.updateChartDocking(floatingWindow.chartId, true, edge)
+            persistWindowState()
         }
     }
 
@@ -753,19 +835,21 @@ Rectangle {
         floatingWindow.height = floatingWindow.restoreGeometry.height
         clampToParent()
 
-        // Notify windowManager (if available)
-        if (typeof windowManager !== 'undefined' && windowManager !== null) {
-            windowManager.undockWindow(floatingWindow.chartId)
+        if (floatingWindow.workspaceController) {
+            floatingWindow.workspaceController.updateChartDocking(floatingWindow.chartId, false, "")
+            floatingWindow.workspaceController.updateChartGeometry(
+                floatingWindow.chartId,
+                floatingWindow.x,
+                floatingWindow.y,
+                floatingWindow.width,
+                floatingWindow.height
+            )
         }
     }
 
     Component.onDestruction: {
-        // Safety: if window got destroyed without going through App.removeFloatingWindow
-        if (parent && parent.activeWindows && parent.activeWindows[floatingWindow.chartId]) {
-            delete parent.activeWindows[floatingWindow.chartId]
-            if (appRoot && appRoot.chartWindow && appRoot.chartWindow.refreshAvailableCharts) {
-                appRoot.chartWindow.refreshAvailableCharts()
-            }
+        if (floatingWindow.workspaceController) {
+            floatingWindow.workspaceController.unregisterWindow(floatingWindow.chartId, floatingWindow)
         }
     }
 }

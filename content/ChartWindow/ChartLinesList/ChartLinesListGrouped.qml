@@ -3,6 +3,7 @@ import QtQuick.Controls 6.4
 import QtQuick.Layouts 1.15
 import Common 1.0
 import Backend 1.0
+import Theme 1.0
 
 /**
  * ChartLinesListGrouped.qml
@@ -24,6 +25,18 @@ Item {
     property bool isCollapsed: false
     property bool embedded: false
 
+    readonly property color panelBackground: AppTheme.surfaces.interfaceBackground
+    readonly property color cardBackground: AppTheme.surfaces.card
+    readonly property color borderColor: AppTheme.borders.primary
+    readonly property color dividerColor: AppTheme.borders.subtle
+    readonly property color textPrimary: AppTheme.text.primary
+    readonly property color textSecondary: AppTheme.text.secondary
+    readonly property color textMuted: AppTheme.text.placeholder
+    readonly property color accent: AppTheme.palette.primary
+    readonly property color accentHover: AppTheme.palette.primaryHover
+    readonly property color accentPressed: AppTheme.palette.primaryPressed
+    readonly property color accentBorder: AppTheme.palette.primaryBorder
+
     // Internal: Track which chart groups are collapsed
     property var collapsedCharts: ({})
 
@@ -32,8 +45,8 @@ Item {
 
     Rectangle {
         anchors.fill: parent
-        color: "#f8f8f8"
-        border.color: "#d0d0d0"
+        color: root.panelBackground
+        border.color: root.borderColor
         border.width: 1
         radius: 8
 
@@ -54,12 +67,12 @@ Item {
 
             background: Rectangle {
                 color: {
-                    if (collapseButton.pressed) return "#1565c0"
-                    if (collapseButton.hovered) return "#1976d2"
-                    return "#2196f3"
+                    if (collapseButton.pressed) return root.accentPressed
+                    if (collapseButton.hovered) return root.accentHover
+                    return root.accent
                 }
                 radius: 6
-                border.color: "#1565c0"
+                border.color: root.accentBorder
                 border.width: 1
             }
 
@@ -92,7 +105,7 @@ Item {
                     text: qsTr("Chart Lines")
                     font.pixelSize: 14
                     font.bold: true
-                    color: "#444"
+                    color: root.textPrimary
                     Layout.fillWidth: true
                 }
 
@@ -110,12 +123,12 @@ Item {
 
                     background: Rectangle {
                         color: {
-                            if (headerCollapseButton.pressed) return "#1565c0"
-                            if (headerCollapseButton.hovered) return "#1976d2"
-                            return "#2196f3"
+                            if (headerCollapseButton.pressed) return root.accentPressed
+                            if (headerCollapseButton.hovered) return root.accentHover
+                            return root.accent
                         }
                         radius: 4
-                        border.color: "#1565c0"
+                        border.color: root.accentBorder
                         border.width: 1
                     }
 
@@ -135,7 +148,7 @@ Item {
             Rectangle {
                 Layout.fillWidth: true
                 height: 1
-                color: "#d0d0d0"
+                color: root.dividerColor
                 visible: !root.embedded
             }
 
@@ -164,8 +177,8 @@ Item {
                             Layout.fillWidth: true
                             // Use implicitHeight to avoid a binding loop with anchors.fill
                             Layout.preferredHeight: chartGroupColumn.implicitHeight + 20
-                            color: "#ffffff"
-                            border.color: "#b0b0b0"
+                            color: root.cardBackground
+                            border.color: root.borderColor
                             border.width: 1
                             radius: 6
 
@@ -209,7 +222,7 @@ Item {
                                         height: 24
 
                                         background: Rectangle {
-                                            color: parent.hovered ? "#e0e0e0" : "transparent"
+                                            color: parent.hovered ? root.dividerColor : "transparent"
                                             radius: 3
                                         }
 
@@ -221,7 +234,7 @@ Item {
                                         text: shortenChartTitle(model.chartTitle || "Unknown Chart")
                                         font.pixelSize: 13
                                         font.bold: true
-                                        color: "#2196f3"
+                                        color: root.textPrimary
                                         Layout.fillWidth: true
                                         elide: Text.ElideRight
                                     }
@@ -231,8 +244,8 @@ Item {
                                         width: countLabel.width + 12
                                         height: 20
                                         radius: 10
-                                        color: "#e3f2fd"
-                                        border.color: "#2196f3"
+                                        color: AppTheme.surfaces.muted
+                                        border.color: root.accentBorder
                                         border.width: 1
 
                                         Label {
@@ -241,7 +254,7 @@ Item {
                                             text: model.lineCount.toString()
                                             font.pixelSize: 10
                                             font.bold: true
-                                            color: "#1976d2"
+                                            color: root.accent
                                         }
                                     }
                                 }
@@ -250,7 +263,7 @@ Item {
                                 Rectangle {
                                     Layout.fillWidth: true
                                     height: 1
-                                    color: "#e0e0e0"
+                                    color: root.dividerColor
                                     visible: !isChartCollapsed(model.chartId)
                                 }
 
@@ -266,6 +279,7 @@ Item {
 
                                         // Required properties for ListModel delegate
                                         required property string uniqueId
+                                        required property string lineKey
                                         required property string displayName
                                         required property string color
                                         required property bool lineVisible
@@ -274,9 +288,9 @@ Item {
 
                                         Rectangle {
                                             anchors.fill: parent
-                                            color: mouseArea.containsMouse ? "#e3f2fd" : "transparent"
+                                            color: mouseArea.containsMouse ? AppTheme.surfaces.muted : "transparent"
                                             radius: 4
-                                            border.color: lineItem.lineVisible ? "#90caf9" : "transparent"
+                                            border.color: lineItem.lineVisible ? root.accentBorder : "transparent"
                                             border.width: lineItem.lineVisible ? 1 : 0
 
                                             RowLayout {
@@ -291,7 +305,7 @@ Item {
                                                     height: 20
                                                     radius: 10
                                                     color: lineItem.color
-                                                    border.color: "#ffffff"
+                                                    border.color: root.borderColor
                                                     border.width: 1
                                                     Layout.alignment: Qt.AlignVCenter
                                                 }
@@ -299,7 +313,7 @@ Item {
                                                 // Display name
                                                 Label {
                                                     text: lineItem.displayName
-                                                    color: lineItem.lineVisible ? "#222" : "#999"
+                                                    color: lineItem.lineVisible ? root.textPrimary : root.textMuted
                                                     font.pixelSize: 12
                                                     elide: Text.ElideRight
                                                     Layout.fillWidth: true
@@ -311,7 +325,7 @@ Item {
                                                     width: idLabel.width + 12
                                                     height: 20
                                                     radius: 3
-                                                    color: "#e0e0e0"
+                                                    color: AppTheme.surfaces.muted
                                                     Layout.alignment: Qt.AlignVCenter
                                                     visible: lineItem.dataId !== undefined && lineItem.dataId !== ""
 
@@ -319,7 +333,7 @@ Item {
                                                         id: idLabel
                                                         anchors.centerIn: parent
                                                         text: "ID:" + lineItem.dataId
-                                                        color: "#555"
+                                                        color: root.textSecondary
                                                         font.pixelSize: 10
                                                     }
                                                 }
@@ -329,14 +343,14 @@ Item {
                                                     width: typeLabel.width + 12
                                                     height: 20
                                                     radius: 3
-                                                    color: "#e0e0e0"
+                                                    color: AppTheme.surfaces.muted
                                                     Layout.alignment: Qt.AlignVCenter
 
                                                     Label {
                                                         id: typeLabel
                                                         anchors.centerIn: parent
                                                         text: lineItem.interfaceType
-                                                        color: "#555"
+                                                        color: root.textSecondary
                                                         font.pixelSize: 10
                                                     }
                                                 }
@@ -349,7 +363,7 @@ Item {
                                                     Layout.alignment: Qt.AlignVCenter
 
                                                     background: Rectangle {
-                                                        color: visibilityButton.hovered ? "#e0e0e0" : "transparent"
+                                                        color: visibilityButton.hovered ? AppTheme.surfaces.muted : "transparent"
                                                         radius: 3
                                                     }
 
@@ -358,12 +372,12 @@ Item {
                                                         font.pixelSize: 16
                                                         horizontalAlignment: Text.AlignHCenter
                                                         verticalAlignment: Text.AlignVCenter
-                                                        color: lineItem.lineVisible ? "#2196f3" : "#999"
+                                                        color: lineItem.lineVisible ? root.accent : root.textMuted
                                                     }
 
                                                         onClicked: {
-                                                            Logger.log_debug("ChartLinesListGrouped: Toggling visibility for " + lineItem.uniqueId)
-                                                            root.lineVisibilityToggled(lineItem.uniqueId, !lineItem.lineVisible)
+                                                            Logger.log_debug("ChartLinesListGrouped: Toggling visibility for " + lineItem.lineKey)
+                                                            root.lineVisibilityToggled(lineItem.lineKey, !lineItem.lineVisible)
                                                         }
                                                     }
                                             }
@@ -376,8 +390,8 @@ Item {
                                                 z: -1
 
                                                 onClicked: {
-                                                    Logger.log_debug("ChartLinesListGrouped: Line selected: " + lineItem.uniqueId)
-                                                    root.lineSelected(lineItem.uniqueId)
+                                                    Logger.log_debug("ChartLinesListGrouped: Line selected: " + lineItem.lineKey)
+                                                    root.lineSelected(lineItem.lineKey)
                                                 }
                                             }
                                         }
@@ -387,7 +401,7 @@ Item {
                                 // Empty state for this chart
                                 Label {
                                     text: qsTr("No lines in this chart")
-                                    color: "#999"
+                                    color: root.textMuted
                                     font.pixelSize: 11
                                     font.italic: true
                                     Layout.fillWidth: true
@@ -408,7 +422,7 @@ Item {
                         Label {
                             anchors.centerIn: parent
                             text: qsTr("No chart lines")
-                            color: "#999"
+                            color: root.textMuted
                             font.pixelSize: 12
                         }
                     }

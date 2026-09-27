@@ -4,31 +4,15 @@ import QtQuick.Layouts 1.15
 import DataModels.SerialDataModels 1.0
 import Common 1.0
 import Backend 1.0
+import Theme 1.0
 import "components"
 import "ChartWindow/ConnectionManager"
 
 Drawer {
     id: navDrawer
+    objectName: "navDrawer"
     property var window
     property var settingsPopup
-
-    // Legacy properties for backward compatibility (deprecated - will be removed)
-    property alias startButton: dummyButton
-    property alias stopButton: dummyButton
-    property alias sourceCombo: dummyCombo
-
-    // Dummy components for legacy compatibility
-    Button { id: dummyButton; visible: false }
-    ComboBox { id: dummyCombo; visible: false }
-
-    // Get appController from App.qml via window reference
-    function getAppController() {
-        if(window && typeof window.getAppController === "function") {
-            return window.getAppController()
-        }
-        Logger.log_error("NavDrawer: Cannot get appController - window.getAppController not available")
-        return null
-    }
 
     width: Math.min((window ? window.width : 800) * 0.4, 360)
     height: window ? window.height : 600
@@ -36,9 +20,30 @@ Drawer {
     interactive: true
     modal: true
 
+    background: Rectangle {
+        gradient: Gradient {
+            GradientStop { position: 0.0; color: navDrawer.panelBackground }
+            GradientStop { position: 1.0; color: AppTheme.surfaces.muted }
+        }
+        border.color: navDrawer.sectionBorder
+        border.width: 1
+    }
+
     // State for connection section collapse
     property bool connectionsExpanded: true
-    property bool testSectionExpanded: true
+    property bool testSectionExpanded: false
+
+    readonly property color panelBackground: AppTheme.surfaces.interfaceBackground
+    readonly property color sectionBackground: AppTheme.surfaces.card
+    readonly property color sectionBorder: AppTheme.borders.primary
+    readonly property color dividerColor: AppTheme.borders.subtle
+    readonly property color textPrimary: AppTheme.text.primary
+    readonly property color textSecondary: AppTheme.text.secondary
+    readonly property color textMuted: AppTheme.text.placeholder
+    readonly property color accent: AppTheme.palette.primary
+    readonly property color accentHover: AppTheme.palette.primaryHover
+    readonly property color accentPressed: AppTheme.palette.primaryPressed
+    readonly property color accentBorder: AppTheme.palette.primaryBorder
 
     // Connection Manager Dialog (unified, shared component)
     ConnectionManagerDialog {
@@ -79,10 +84,6 @@ Drawer {
 
     ListModel {
         id: navModel
-        ListElement { section: "TEST"; title: "Test 2D"; iconName: "test2d" }
-        ListElement { section: "TEST"; title: "Test 2D X/Y"; iconName: "testxy" }
-        ListElement { section: "TEST"; title: "Test XY"; iconName: "testxy" }
-        ListElement { section: "TEST"; title: "Test 3D"; iconName: "test3d" }
         ListElement { section: "APPLICATION"; title: "About"; iconName: "info" }
         ListElement { section: "APPLICATION"; title: "Quit"; iconName: "exit" }
     }
@@ -108,13 +109,9 @@ Drawer {
                 (connectionsSectionHeader.height + 16)
             Layout.minimumHeight: connectionsSectionHeader.height + 16
             radius: 8
-            color: "#f8f8f8"
-            border.color: "#d0d0d0"
+            color: navDrawer.sectionBackground
+            border.color: navDrawer.sectionBorder
             border.width: 1
-
-            Behavior on Layout.preferredHeight {
-                NumberAnimation { duration: 250; easing.type: Easing.InOutQuad }
-            }
 
             ColumnLayout {
                 anchors.fill: parent
@@ -134,7 +131,8 @@ Drawer {
                     Button {
                         id: expandCollapseButton
                         text: connectionsExpanded ? "▼" : "▶"
-                        Layout.preferredWidth: 36
+                        visible: false
+                        Layout.preferredWidth: 0
                         Layout.preferredHeight: 32
                         font.pixelSize: 11
 
@@ -146,26 +144,26 @@ Drawer {
 
                         background: Rectangle {
                             radius: 4
-                            color: expandCollapseButton.pressed ? "#e0e0e0" :
-                                   expandCollapseButton.hovered ? "#eeeeee" : "transparent"
-                            border.color: "#d0d0d0"
+                            color: expandCollapseButton.pressed ? AppTheme.surfaces.muted :
+                                   expandCollapseButton.hovered ? AppTheme.surfaces.card : "transparent"
+                            border.color: navDrawer.dividerColor
                             border.width: 1
                         }
                     }
 
                     Label {
-                        text: qsTr("Connections") + " (" + connectionsListModel.count + ")"
+                        text: qsTr("1 · Data sources") + " (" + connectionsListModel.count + ")"
                         font.bold: true
                         font.pixelSize: 14
-                        color: "#444"
+                        color: navDrawer.textPrimary
                         Layout.fillWidth: true
                         verticalAlignment: Text.AlignVCenter
                     }
 
                     Button {
                         id: manageConnectionsButton
-                        text: "⚙"
-                        Layout.preferredWidth: 36
+                        text: qsTr("Manage")
+                        Layout.preferredWidth: 78
                         Layout.preferredHeight: 32
                         font.pixelSize: 16
                         font.bold: true
@@ -181,18 +179,18 @@ Drawer {
                         background: Rectangle {
                             radius: 4
                             color: {
-                                if (manageConnectionsButton.pressed) return "#1565c0"
-                                if (manageConnectionsButton.hovered) return "#1976d2"
-                                return "#2196f3"
+                                if (manageConnectionsButton.pressed) return navDrawer.accentPressed
+                                if (manageConnectionsButton.hovered) return navDrawer.accentHover
+                                return navDrawer.accent
                             }
-                            border.color: "#1565c0"
+                            border.color: navDrawer.accentBorder
                             border.width: 1
                         }
 
                         contentItem: Text {
                             text: manageConnectionsButton.text
                             font: manageConnectionsButton.font
-                            color: "white"
+                            color: AppTheme.text.primary
                             horizontalAlignment: Text.AlignHCenter
                             verticalAlignment: Text.AlignVCenter
                         }
@@ -200,8 +198,8 @@ Drawer {
 
                     Button {
                         id: addConnectionButton
-                        text: "+"
-                        Layout.preferredWidth: 36
+                        text: qsTr("+ Add")
+                        Layout.preferredWidth: 64
                         Layout.preferredHeight: 32
                         font.pixelSize: 16
                         font.bold: true
@@ -217,18 +215,18 @@ Drawer {
                         background: Rectangle {
                             radius: 4
                             color: {
-                                if (addConnectionButton.pressed) return "#1565c0"
-                                if (addConnectionButton.hovered) return "#1976d2"
-                                return "#2196f3"
+                                if (addConnectionButton.pressed) return navDrawer.accentPressed
+                                if (addConnectionButton.hovered) return navDrawer.accentHover
+                                return navDrawer.accent
                             }
-                            border.color: "#1565c0"
+                            border.color: navDrawer.accentBorder
                             border.width: 1
                         }
 
                         contentItem: Text {
                             text: addConnectionButton.text
                             font: addConnectionButton.font
-                            color: "white"
+                            color: AppTheme.text.primary
                             horizontalAlignment: Text.AlignHCenter
                             verticalAlignment: Text.AlignVCenter
                         }
@@ -257,6 +255,8 @@ Drawer {
                             model: connectionsListModel
                             spacing: 6
                             interactive: contentHeight > height
+                            reuseItems: true
+                            cacheBuffer: 200
 
                             delegate: ConnectionCard {
                                 width: ListView.view.width
@@ -291,9 +291,9 @@ Drawer {
 
                     // Empty State
                     Label {
-                        text: qsTr("No connections yet.\nClick '+' to add a new connection.")
+                        text: qsTr("No data source yet. Add a Serial, Telnet, MQTT, CAN or Test connection.")
                         font.pixelSize: 11
-                        color: "#999"
+                        color: navDrawer.textMuted
                         horizontalAlignment: Text.AlignHCenter
                         wrapMode: Text.WordWrap
                         Layout.fillWidth: true
@@ -308,19 +308,16 @@ Drawer {
         // TEST Section (Collapsible)
         Rectangle {
             id: testSection
+            visible: false
             Layout.fillWidth: true
             Layout.preferredHeight: testSectionExpanded ?
                 (testSectionContent.implicitHeight + testSectionHeader.height + 24) :
                 (testSectionHeader.height + 16)
             Layout.minimumHeight: testSectionHeader.height + 16
             radius: 8
-            color: "#f8f8f8"
-            border.color: "#d0d0d0"
+            color: navDrawer.sectionBackground
+            border.color: navDrawer.sectionBorder
             border.width: 1
-
-            Behavior on Layout.preferredHeight {
-                NumberAnimation { duration: 250; easing.type: Easing.InOutQuad }
-            }
 
             ColumnLayout {
                 anchors.fill: parent
@@ -352,18 +349,18 @@ Drawer {
 
                         background: Rectangle {
                             radius: 4
-                            color: testExpandCollapseButton.pressed ? "#e0e0e0" :
-                                   testExpandCollapseButton.hovered ? "#eeeeee" : "transparent"
-                            border.color: "#d0d0d0"
+                            color: testExpandCollapseButton.pressed ? AppTheme.surfaces.muted :
+                                   testExpandCollapseButton.hovered ? AppTheme.surfaces.card : "transparent"
+                            border.color: navDrawer.dividerColor
                             border.width: 1
                         }
                     }
 
                     Label {
-                        text: qsTr("TEST")
+                        text: qsTr("Advanced test tools")
                         font.bold: true
                         font.pixelSize: 14
-                        color: "#444"
+                        color: navDrawer.textPrimary
                         Layout.fillWidth: true
                         verticalAlignment: Text.AlignVCenter
                     }
@@ -377,10 +374,6 @@ Drawer {
                     opacity: testSectionExpanded ? 1.0 : 0.0
                     spacing: 6
 
-                    Behavior on opacity {
-                        NumberAnimation { duration: 200 }
-                    }
-
                     ListView {
                         id: testList
                         Layout.fillWidth: true
@@ -389,6 +382,7 @@ Drawer {
                         model: navModel ? navModel : []
                         clip: true
                         interactive: false
+                        reuseItems: true
 
                         delegate: Rectangle {
                             id: testMenuItem
@@ -396,11 +390,11 @@ Drawer {
                             height: section === "TEST" ? 44 : 0
                             visible: section === "TEST"
                             color: {
-                                if (ListView.isCurrentItem) return "#2196f3"
-                                if (testMenuItemMouseArea.containsMouse) return "#e3f2fd"
+                                if (ListView.isCurrentItem) return navDrawer.accent
+                                if (testMenuItemMouseArea.containsMouse) return AppTheme.surfaces.muted
                                 return "transparent"
                             }
-                            border.color: ListView.isCurrentItem ? "#1976d2" : "transparent"
+                            border.color: ListView.isCurrentItem ? navDrawer.accentBorder : "transparent"
                             border.width: ListView.isCurrentItem ? 1 : 0
                             radius: 6
 
@@ -415,12 +409,12 @@ Drawer {
                                 Label {
                                     text: "\u25A0"
                                     visible: iconName !== ""
-                                    color: ListView.isCurrentItem ? "white" : "#555"
+                                    color: ListView.isCurrentItem ? AppTheme.text.primary : navDrawer.textSecondary
                                     font.pixelSize: 14
                                 }
                                 Label {
                                     text: title
-                                    color: ListView.isCurrentItem ? "white" : "#222"
+                                    color: ListView.isCurrentItem ? AppTheme.text.primary : navDrawer.textPrimary
                                     font.pixelSize: 14
                                     font.weight: Font.Medium
                                     Layout.fillWidth: true
@@ -466,14 +460,15 @@ Drawer {
         ColumnLayout {
             Layout.fillWidth: true
             spacing: 8
+            visible: false
 
             // APPLICATION Section Container
             Rectangle {
                 Layout.fillWidth: true
                 implicitHeight: applicationSectionContent.implicitHeight + 24
                 radius: 8
-                color: "#f8f8f8"
-                border.color: "#d0d0d0"
+                color: navDrawer.sectionBackground
+                border.color: navDrawer.sectionBorder
                 border.width: 1
 
                 ColumnLayout {
@@ -488,7 +483,7 @@ Drawer {
                     // APPLICATION Section Header
                     Label {
                         text: qsTr("APPLICATION")
-                        color: "#7a7a7a"
+                        color: navDrawer.textMuted
                         font.pixelSize: 11
                         font.bold: true
                         Layout.fillWidth: true
@@ -503,6 +498,7 @@ Drawer {
                         model: navModel ? navModel : []
                         clip: true
                         interactive: false
+                        reuseItems: true
 
                         delegate: Rectangle {
                             id: menuItem
@@ -510,11 +506,11 @@ Drawer {
                             height: section === "APPLICATION" ? 44 : 0
                             visible: section === "APPLICATION"
                         color: {
-                            if (ListView.isCurrentItem) return "#2196f3"
-                            if (menuItemMouseArea.containsMouse) return "#e3f2fd"
+                            if (ListView.isCurrentItem) return navDrawer.accent
+                            if (menuItemMouseArea.containsMouse) return AppTheme.surfaces.muted
                             return "transparent"
                         }
-                        border.color: ListView.isCurrentItem ? "#1976d2" : "transparent"
+                        border.color: ListView.isCurrentItem ? navDrawer.accentBorder : "transparent"
                         border.width: ListView.isCurrentItem ? 1 : 0
                         radius: 6
 
@@ -529,12 +525,12 @@ Drawer {
                             Label {
                                 text: "\u25A0"
                                 visible: iconName !== ""
-                                color: ListView.isCurrentItem ? "white" : "#555"
+                                color: ListView.isCurrentItem ? AppTheme.text.primary : navDrawer.textSecondary
                                 font.pixelSize: 14
                             }
                             Label {
                                 text: title
-                                color: ListView.isCurrentItem ? "white" : "#222"
+                                color: ListView.isCurrentItem ? AppTheme.text.primary : navDrawer.textPrimary
                                 font.pixelSize: 14
                                 font.weight: Font.Medium
                                 Layout.fillWidth: true
@@ -569,10 +565,29 @@ Drawer {
         }
         }
 
-        // Global Settings Button
+        RowLayout {
+            Layout.fillWidth: true
+            spacing: 8
+
+            Button {
+                text: qsTr("About")
+                Layout.fillWidth: true
+                Layout.preferredHeight: 38
+                onClicked: aboutDialog.open()
+            }
+
+            Button {
+                text: qsTr("Quit")
+                Layout.fillWidth: true
+                Layout.preferredHeight: 38
+                onClicked: if (window) window.close()
+            }
+        }
+
+        // Infrequent application options stay secondary to the data-source workflow.
         Button {
             id: navSettingsButton
-            text: qsTr("⚙ Settings")
+            text: qsTr("Application settings")
             Layout.fillWidth: true
             Layout.preferredHeight: 48
             Layout.topMargin: 4
@@ -590,11 +605,11 @@ Drawer {
             background: Rectangle {
                 radius: 8
                 color: {
-                    if (navSettingsButton.pressed) return "#1565c0"
-                    if (navSettingsButton.hovered) return "#1976d2"
-                    return "#2196f3"
+                    if (navSettingsButton.pressed) return navDrawer.accentPressed
+                    if (navSettingsButton.hovered) return navDrawer.accentHover
+                    return AppTheme.buttons.neutral.background
                 }
-                border.color: "#1565c0"
+                border.color: navSettingsButton.activeFocus ? AppTheme.borders.focus : AppTheme.buttons.neutral.border
                 border.width: 1
             }
 
@@ -602,7 +617,7 @@ Drawer {
                 text: navSettingsButton.text
                 font.pixelSize: 14
                 font.bold: true
-                color: "white"
+                color: AppTheme.text.primary
                 horizontalAlignment: Text.AlignHCenter
                 verticalAlignment: Text.AlignVCenter
             }
@@ -635,8 +650,8 @@ Drawer {
         height: 300
 
         background: Rectangle {
-            color: "#2d2d2d"
-            border.color: "#4d4d4d"
+            color: AppTheme.surfaces.card
+            border.color: AppTheme.borders.primary
             border.width: 1
             radius: 8
         }
@@ -650,27 +665,27 @@ Drawer {
                 text: qsTr("Plotter Application")
                 font.pixelSize: 24
                 font.bold: true
-                color: "#ffffff"
+                color: AppTheme.text.primary
                 Layout.alignment: Qt.AlignHCenter
             }
 
             Label {
                 text: qsTr("Version 1.0")
                 font.pixelSize: 14
-                color: "#cccccc"
+                color: AppTheme.text.secondary
                 Layout.alignment: Qt.AlignHCenter
             }
 
             Rectangle {
                 Layout.fillWidth: true
                 height: 1
-                color: "#4d4d4d"
+                color: AppTheme.borders.subtle
             }
 
             Label {
                 text: qsTr("A multi-interface data plotting application supporting Serial, Telnet, MQTT, and Test interfaces.")
                 font.pixelSize: 12
-                color: "#aaaaaa"
+                color: AppTheme.text.secondary
                 wrapMode: Text.WordWrap
                 Layout.fillWidth: true
                 horizontalAlignment: Text.AlignHCenter
@@ -683,7 +698,7 @@ Drawer {
             Label {
                 text: qsTr("© 2025 Plotter Project")
                 font.pixelSize: 10
-                color: "#888888"
+                color: AppTheme.text.placeholder
                 Layout.alignment: Qt.AlignHCenter
             }
         }
@@ -719,46 +734,30 @@ Drawer {
     }
 
     function testFloatingWindow2D() {
-        Logger.log_info("NavDrawer: Triggering Test 2D floating window")
-
-        // Try to find ChartWindow to call its test function
-        if (window && window.chartWindow && window.chartWindow.testFloatingWindow) {
-            window.chartWindow.testFloatingWindow()
-        } else {
-            Logger.log_error("NavDrawer: Cannot find chartWindow.testFloatingWindow function")
-        }
+        _createExampleChart("time_series", "Time Series")
     }
 
     function testFloatingWindow3D() {
-        Logger.log_info("NavDrawer: Triggering Test 3D floating window")
-
-        // Try to find ChartWindow to call its test function
-        if (window && window.chartWindow && window.chartWindow.test3DFloatingWindow) {
-            window.chartWindow.test3DFloatingWindow()
-        } else {
-            Logger.log_error("NavDrawer: Cannot find chartWindow.test3DFloatingWindow function")
-        }
+        _createExampleChart("xyz_scatter", "3D Scatter")
     }
 
     function testFloatingWindow2DXY() {
-        Logger.log_info("NavDrawer: Triggering Test 2D X/Y floating window")
-
-        // Try to find ChartWindow to call its test function
-        if (window && window.chartWindow && window.chartWindow.testFloatingWindowXYMulti) {
-            window.chartWindow.testFloatingWindowXYMulti()
-        } else {
-            Logger.log_error("NavDrawer: Cannot find chartWindow.testFloatingWindowXYMulti function")
-        }
+        _createExampleChart("time_series", "Time Series X/Y")
     }
 
     function testFloatingWindowXY() {
-        Logger.log_info("NavDrawer: Triggering Test XY floating window")
+        _createExampleChart("xy_line", "Cartesian XY")
+    }
 
-        // Try to find ChartWindow to call its test function
-        if (window && window.chartWindow && window.chartWindow.testFloatingWindowXY) {
-            window.chartWindow.testFloatingWindowXY()
-        } else {
-            Logger.log_error("NavDrawer: Cannot find chartWindow.testFloatingWindowXY function")
+    function _createExampleChart(chartType, title) {
+        if (!window || !window.workspaceController) {
+            Logger.log_error("NavDrawer: Workspace controller unavailable")
+            return
         }
+        window.workspaceController.createChart(
+            chartType,
+            title,
+            "chart_" + chartType + "_" + Date.now()
+        )
     }
 }

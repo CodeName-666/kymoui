@@ -14,7 +14,7 @@ QtObject {
     readonly property color textSecondary: AppTheme.text.secondary
     readonly property color textLabel: AppTheme.text.label
     readonly property color errorColor: AppTheme.palette.danger
-    readonly property color errorBackground: "#ffebee"
+    readonly property color errorBackground: "#3a1f23"
     readonly property color successColor: AppTheme.palette.success
     readonly property color highlightColor: AppTheme.palette.primary
 

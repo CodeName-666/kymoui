@@ -90,9 +90,16 @@ ListModel {
         return true
     }
 
+    function removeMessage(uniqueId) {
+        var idx = getMessageIndex(uniqueId)
+        if (idx === -1) return false
+        remove(idx)
+        modelChanged()
+        return true
+    }
+
     function clearAll() {
         clear()
         modelChanged()
     }
 }
-

@@ -1,9 +1,7 @@
 import QtQuick 6.4
 import QtQuick.Controls 6.4
 import QtQuick3D 6.4
-import Backend 1.0
-import Common 1.0
-import PlotterUi 1.0
+import Theme 1.0
 
 /**
  * XYZChartRenderer.qml
@@ -22,8 +20,6 @@ Item {
     property string chartId: ""
     property string chartTitle: "3D Chart"
     property var chartData: null  // Reference to chart data model
-    // Reference to the central chart line model (passed from App for floating windows)
-    property var chartLineModel: null
 
     // 3D View configuration
     property real initialCameraDistance: 50
@@ -43,12 +39,35 @@ Item {
     property real zMin: -10
     property real zMax: 10
 
-    property bool _backendConnected: false
-    property var _backendEvents: null
+    property bool updatesSuspended: false
+    property int maxPointsPerSeries: 5000
 
     // Internal state
     property var _scatterPlots: ({})  // Dictionary of scatter plots by uniqueId
     property var _pointModels: ({})   // Dictionary of point arrays by uniqueId
+
+    // Reuse compiled components for every series and point.
+    Component {
+        id: scatterNodeComponent
+        Node {
+            property color pointColor: "#ffff00"
+        }
+    }
+
+    Component {
+        id: pointComponent
+        Model {
+            id: pointModel
+            property color pointColor: "#ffff00"
+            source: "#Sphere"
+            scale: Qt.vector3d(0.3, 0.3, 0.3)
+            materials: PrincipledMaterial {
+                baseColor: pointModel.pointColor
+                metalness: 0.3
+                roughness: 0.5
+            }
+        }
+    }
 
     // 3D View
     View3D {
@@ -57,7 +76,7 @@ Item {
 
         environment: SceneEnvironment {
             backgroundMode: SceneEnvironment.Color
-            clearColor: "#1e1e1e"
+            clearColor: AppTheme.surfaces.interfaceBackground
             antialiasingMode: SceneEnvironment.MSAA
             antialiasingQuality: SceneEnvironment.High
         }
@@ -269,10 +288,10 @@ Item {
         anchors.top: parent.top
         anchors.right: parent.right
         anchors.margins: 10
-        color: "#2d2d2d"
+        color: AppTheme.surfaces.card
         radius: 6
         opacity: 0.95
-        border.color: "#404040"
+        border.color: AppTheme.borders.primary
         border.width: 1
         z: 100
 
@@ -284,7 +303,7 @@ Item {
 
             Text {
                 text: "3D Camera Controls"
-                color: "#ffffff"
+                color: AppTheme.text.primary
                 font.pixelSize: 12
                 font.bold: true
                 anchors.horizontalCenter: parent.horizontalCenter
@@ -293,7 +312,7 @@ Item {
             Rectangle {
                 width: parent.width
                 height: 1
-                color: "#404040"
+                color: AppTheme.borders.subtle
             }
 
             // Zoom controls
@@ -303,7 +322,7 @@ Item {
 
                 Text {
                     text: "Zoom:"
-                    color: "#cccccc"
+                    color: AppTheme.text.secondary
                     font.pixelSize: 11
                     anchors.verticalCenter: parent.verticalCenter
                 }
@@ -345,7 +364,7 @@ Item {
             // View angle presets
             Text {
                 text: "View Angle:"
-                color: "#cccccc"
+                color: AppTheme.text.secondary
                 font.pixelSize: 11
                 anchors.horizontalCenter: parent.horizontalCenter
             }
@@ -391,7 +410,7 @@ Item {
             // Orbit controls
             Text {
                 text: "Orbit:"
-                color: "#cccccc"
+                color: AppTheme.text.secondary
                 font.pixelSize: 11
                 anchors.horizontalCenter: parent.horizontalCenter
             }
@@ -445,26 +464,26 @@ Item {
             Rectangle {
                 width: parent.width
                 height: 1
-                color: "#404040"
+                color: AppTheme.borders.subtle
             }
 
             Text {
                 text: "Distance: " + root.cameraDistance.toFixed(1)
-                color: "#cccccc"
+                color: AppTheme.text.secondary
                 font.pixelSize: 10
                 anchors.horizontalCenter: parent.horizontalCenter
             }
 
             Text {
                 text: "Elevation: " + root.cameraElevation.toFixed(1) + "°"
-                color: "#cccccc"
+                color: AppTheme.text.secondary
                 font.pixelSize: 10
                 anchors.horizontalCenter: parent.horizontalCenter
             }
 
             Text {
                 text: "Azimuth: " + root.cameraAzimuth.toFixed(1) + "°"
-                color: "#cccccc"
+                color: AppTheme.text.secondary
                 font.pixelSize: 10
                 anchors.horizontalCenter: parent.horizontalCenter
             }
@@ -566,32 +585,23 @@ Item {
      */
     function createScatterPlot(uniqueId, displayName, color) {
         if (_scatterPlots[uniqueId]) {
-            Logger.log_warning("XYZChartRenderer: Scatter plot already exists: " + uniqueId)
+            console.warn("XYZChartRenderer: Scatter plot already exists: " + uniqueId)
             return _scatterPlots[uniqueId]
         }
 
-        // Create a container node for this scatter plot
-        var component = Qt.createComponent("qrc:/qt/qml/content/ChartTypes/ScatterPlotNode.qml")
-        if (component.status !== Component.Ready) {
-            // Fallback: create simple Node
-            Logger.log_warning("XYZChartRenderer: ScatterPlotNode not found, using fallback")
-            var node = Qt.createQmlObject('import QtQuick3D 6.4; Node { property color pointColor: "#ffff00" }', scatterPlotContainer)
-            node.objectName = displayName
-            if (node.pointColor !== undefined) node.pointColor = color || "#ffff00"
-            _scatterPlots[uniqueId] = node
-            _pointModels[uniqueId] = []
-            return node
-        }
-
-        var scatterNode = component.createObject(scatterPlotContainer, {
+        var scatterNode = scatterNodeComponent.createObject(scatterPlotContainer, {
             "objectName": displayName,
             "pointColor": color || "#ffff00"
         })
+        if (!scatterNode) {
+            console.error("XYZChartRenderer: Could not create scatter plot " + uniqueId)
+            return null
+        }
 
         _scatterPlots[uniqueId] = scatterNode
         _pointModels[uniqueId] = []
 
-        Logger.log_info("XYZChartRenderer: Created scatter plot '" + displayName + "' with ID " + uniqueId)
+        console.log("XYZChartRenderer: Created scatter plot '" + displayName + "' with ID " + uniqueId)
         return scatterNode
     }
 
@@ -601,30 +611,28 @@ Item {
     function createLine(uniqueId, displayName, color, interfaceType, dataId) {
         var node = createScatterPlot(uniqueId, displayName, color)
 
-        if (root.chartLineModel && root.chartLineModel.addLine) {
-            var safeDataId = (dataId !== undefined && dataId !== null) ? dataId : ""
-            root.chartLineModel.addLine(
-                uniqueId,
-                displayName,
-                color || "#ffff00",
-                interfaceType || "Unknown",
-                safeDataId,
-                {},      // interfaceSettings
-                node,    // seriesRef (3D scatter node)
-                root.chartId,
-                root.chartTitle
-            )
-        }
-
         return node
     }
 
     function removeLine(uniqueId) {
         removeScatterPlot(uniqueId)
-        if (root.chartLineModel && root.chartLineModel.removeLineForChart) {
-            root.chartLineModel.removeLineForChart(uniqueId, root.chartId)
-        }
         return true
+    }
+
+    function getLine(uniqueId) {
+        return _scatterPlots[uniqueId] || null
+    }
+
+    function updateLineProperties(uniqueId, valueField, displayName, color, visible) {
+        var node = _scatterPlots[uniqueId]
+        if (!node) return
+        node.objectName = displayName
+        node.pointColor = color
+        node.visible = visible
+        var points = _pointModels[uniqueId] || []
+        for (var i = 0; i < points.length; i++) {
+            points[i].pointColor = color
+        }
     }
 
     /**
@@ -635,35 +643,20 @@ Item {
      * @param z - Z coordinate
      */
     function appendPoint3D(uniqueId, x, y, z) {
+        if (root.updatesSuspended) return
         if (!_scatterPlots[uniqueId]) return
         var scatterNode = _scatterPlots[uniqueId]
         var pointColor = (scatterNode && scatterNode.pointColor !== undefined) ? scatterNode.pointColor : "#ffff00"
 
-        // Create a small sphere for each point
-        var component = Qt.createComponent("qrc:/qt/qml/QtQuick3D/Model")
-        if (component.status === Component.Ready) {
-            var point = component.createObject(_scatterPlots[uniqueId], {
-                "source": "#Sphere",
-                "position": Qt.vector3d(x, y, z),
-                "scale": Qt.vector3d(0.3, 0.3, 0.3)
-            })
-
-            // Create material
-            var matComponent = Qt.createComponent("qrc:/qt/qml/QtQuick3D/PrincipledMaterial")
-            if (matComponent.status === Component.Ready) {
-                var material = matComponent.createObject(point, {
-                    "baseColor": pointColor,
-                    "metalness": 0.3,
-                    "roughness": 0.5
-                })
-                point.materials = [material]
-            }
-
+        var point = pointComponent.createObject(_scatterPlots[uniqueId], {
+            "position": Qt.vector3d(x, y, z),
+            "pointColor": pointColor
+        })
+        if (point) {
             _pointModels[uniqueId].push(point)
 
             // Limit maximum points for performance
-            var maxPoints = 50000
-            if (_pointModels[uniqueId].length > maxPoints) {
+            if (_pointModels[uniqueId].length > root.maxPointsPerSeries) {
                 var oldPoint = _pointModels[uniqueId].shift()
                 oldPoint.destroy()
             }
@@ -676,13 +669,14 @@ Item {
      * @param points - Array of [x, y, z] tuples
      */
     function appendPointsBatch3D(uniqueId, points) {
+        if (root.updatesSuspended) return
         if (!_scatterPlots[uniqueId]) return
 
         if (!points || points.length === 0) {
             return
         }
 
-        var maxPoints = 50000
+        var maxPoints = root.maxPointsPerSeries
         var totalAfterAdd = _pointModels[uniqueId].length + points.length
 
         // Remove old points if necessary
@@ -702,7 +696,6 @@ Item {
             appendPoint3D(uniqueId, p[0], p[1], p[2])
         }
 
-        Logger.log_info("XYZChartRenderer: Added " + points.length + " points to scatter plot " + uniqueId)
     }
 
     /**
@@ -731,7 +724,7 @@ Item {
             _scatterPlots[uniqueId].destroy()
             delete _scatterPlots[uniqueId]
             delete _pointModels[uniqueId]
-            Logger.log_info("XYZChartRenderer: Removed scatter plot " + uniqueId)
+            console.log("XYZChartRenderer: Removed scatter plot " + uniqueId)
         }
     }
 
@@ -762,105 +755,15 @@ Item {
      ******************************************************************/
 
     Component.onCompleted: {
-        Logger.log_info("XYZChartRenderer initialized for chart: " + root.chartId)
-        _tryConnectBackendEvents(40)
+        console.log("XYZChartRenderer initialized for chart: " + root.chartId)
     }
 
     Component.onDestruction: {
-        Logger.log_info("XYZChartRenderer destroyed for chart: " + root.chartId)
-        _disconnectBackendEvents()
-
+        console.log("XYZChartRenderer destroyed for chart: " + root.chartId)
         // Cleanup all scatter plots
         for (var plotId in _scatterPlots) {
             removeScatterPlot(plotId)
         }
     }
 
-    function _tryConnectBackendEvents(attemptsLeft) {
-        if (root._backendConnected) {
-            return
-        }
-
-        var controller = null
-        try {
-            controller = App.get_app()
-        } catch (e) {
-            controller = null
-        }
-
-        if (!controller || typeof controller.events !== "function") {
-            if (attemptsLeft > 0) {
-                return Qt.callLater(function() { _tryConnectBackendEvents(attemptsLeft - 1) })
-            }
-            Logger.log_warning("XYZChartRenderer: Backend controller not available - no live data will be shown")
-            return
-        }
-
-        var events = controller.events()
-        if (!events) {
-            if (attemptsLeft > 0) {
-                return Qt.callLater(function() { _tryConnectBackendEvents(attemptsLeft - 1) })
-            }
-            Logger.log_warning("XYZChartRenderer: Backend events not available - no live data will be shown")
-            return
-        }
-
-        if (events.append_graph_point_3d) {
-            events.append_graph_point_3d.connect(handleGraphPoint3D)
-        }
-        if (events.append_graph_points_batch_3d) {
-            events.append_graph_points_batch_3d.connect(handleGraphPointsBatch3D)
-        }
-
-        root._backendEvents = events
-        root._backendConnected = true
-        Logger.log_info("XYZChartRenderer: Connected to backend 3D graph events for chart: " + root.chartId)
-    }
-
-    function _disconnectBackendEvents() {
-        if (!root._backendEvents) {
-            root._backendConnected = false
-            return
-        }
-
-        try {
-            if (root._backendEvents.append_graph_point_3d) {
-                root._backendEvents.append_graph_point_3d.disconnect(handleGraphPoint3D)
-            }
-        } catch (e) {}
-
-        try {
-            if (root._backendEvents.append_graph_points_batch_3d) {
-                root._backendEvents.append_graph_points_batch_3d.disconnect(handleGraphPointsBatch3D)
-            }
-        } catch (e) {}
-
-        root._backendConnected = false
-        root._backendEvents = null
-    }
-
-    /*******************************************************************
-     * INTERNAL FUNCTIONS - Backend Event Handlers (TODO)
-     ******************************************************************/
-
-    /**
-     * Handle single 3D point from backend
-     */
-    function handleGraphPoint3D(uniqueId, point) {
-        if (!root || !point) return
-
-        var x = point.x !== undefined ? point.x : 0
-        var y = point.y !== undefined ? point.y : 0
-        var z = point.z !== undefined ? point.z : 0
-
-        root.appendPoint3D(uniqueId, x, y, z)
-    }
-
-    /**
-     * Handle batch 3D points from backend
-     */
-    function handleGraphPointsBatch3D(uniqueId, points) {
-        if (!root) return
-        root.appendPointsBatch3D(uniqueId, points)
-    }
 }

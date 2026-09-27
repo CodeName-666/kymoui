@@ -242,6 +242,9 @@ Dialog {
             case "Telnet":
                 componentPath = "TelnetSettings.qml"
                 break
+            case "CAN":
+                componentPath = "CanSettings.qml"
+                break
             case "Test":
                 componentPath = "TestSettings.qml"
                 break

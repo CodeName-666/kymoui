@@ -139,6 +139,25 @@ class AppClass {
         return false
     }
 
+    disconnect()
+    {
+        if(!this.used_backend_interface)
+        {
+            console.warn("AppController: No backend available for disconnect()")
+            return false
+        }
+        var connection_type = this.current_interface !== undefined ? this.current_interface : ""
+        if(!connection_type || connection_type === "")
+        {
+            console.error("AppController: No interface selected for disconnect()")
+            return false
+        }
+        if(typeof this.used_backend_interface.disconnectFrom === "function")
+            return this.used_backend_interface.disconnectFrom(connection_type)
+        console.warn("AppController: Backend does not implement disconnectFrom")
+        return false
+    }
+
     set_settings(interface_type, settings)
     {
         console.log("AppController: set_settings called with interface:", interface_type, "settings:", JSON.stringify(settings))
@@ -197,7 +216,6 @@ class AppClass {
             this.used_backend_interface.add_graph(name, graph)
     }
 }
-
 
 
 

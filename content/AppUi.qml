@@ -1,38 +1,38 @@
 import QtQuick 6.4
 import QtQuick.Window 2.15
 import QtQuick.Controls 6.4
-import QtQuick.Timeline 1.0
-import QtCharts 2.3
 import QtQuick.Layouts 1.15
 import Common 1.0
-import DataModels.SerialDataModels 1.0
+import Theme 1.0
 import "Footer"
-import "ChartWindow"
 import "ChartWindow/ChartLinesList"
 import "ChartWindow/FloatingActionButton"
-import "Settings" as SettingsViews
 import "Toolbar"
-import "."
+import "Workspace"
 ApplicationWindow {
     id: applicationWindow
     objectName: "applicationWindow"
     width: Constants.width
     height: Constants.height
     visible: true
-    color: Constants.backgroundColor
+    color: AppTheme.surfaces.background
     title: qsTr(Constants.title)
+    font.family: "Space Grotesk"
+    font.pixelSize: 14
+    background: Rectangle {
+        gradient: Gradient {
+            GradientStop { position: 0.0; color: AppTheme.surfaces.background }
+            GradientStop { position: 1.0; color: AppTheme.surfaces.interfaceBackground }
+        }
+    }
 
-    // Note: appController property is defined in App.qml which inherits from AppUi
-    // We declare it here so NavDrawer can reference it
     property var appController
+    property var workspaceController
 
     property alias settingsPopup: settingsPopup
-    property alias settings: settings
-    property alias chartWindow: chartWindow
     property alias chartWorkspace: chartWorkspace
-    property alias floatingWindowsContainer: floatingWindowsContainer
-    property alias connectButton: navDrawer.startButton
     property alias toolbar: topToolbar
+    property alias navDrawer: navDrawer
 
     header: Toolbar {
         id: topToolbar
@@ -41,12 +41,13 @@ ApplicationWindow {
 
     // State for chart lines list
     property bool chartLinesListCollapsed: false
-    property int chartLinesListWidth: 280
-    property int chartLinesListCollapsedWidth: 50
+    property int chartLinesListWidth: 360
+    property int chartLinesListCollapsedWidth: 48
 
     Item {
         id: mainArea
         anchors.fill: parent
+        opacity: 1
 
         // Split area: chart workspace (left) + manager sidebar (right)
         Item {
@@ -73,26 +74,44 @@ ApplicationWindow {
 
                     Rectangle {
                         anchors.fill: parent
-                        color: Constants.backgroundColor
+                        gradient: Gradient {
+                            GradientStop { position: 0.0; color: AppTheme.surfaces.interfaceBackground }
+                            GradientStop { position: 1.0; color: AppTheme.surfaces.muted }
+                        }
+                        border.color: AppTheme.borders.subtle
+                        border.width: 1
 
-                        // Optional: Add a welcome message or placeholder
-                        Text {
+                        ColumnLayout {
                             anchors.centerIn: parent
-                            text: "Open the menu to create charts or manage connections"
-                            font.pixelSize: 16
-                            color: "#808080"
-                            opacity: 0.5
+                            width: Math.min(430, parent.width - 48)
+                            spacing: 12
+
+                            Label {
+                                Layout.fillWidth: true
+                                text: qsTr("No chart open")
+                                font.pixelSize: 18
+                                font.bold: true
+                                color: AppTheme.text.primary
+                                horizontalAlignment: Text.AlignHCenter
+                            }
+
+                            Label {
+                                Layout.fillWidth: true
+                                text: qsTr("Create a time series or a Cartesian XY chart, then assign incoming signals in the workspace panel.")
+                                font.pixelSize: 13
+                                color: AppTheme.text.secondary
+                                horizontalAlignment: Text.AlignHCenter
+                                wrapMode: Text.WordWrap
+                            }
+
                         }
                     }
 
-                    // Container for dynamically created floating windows
-                    Item {
-                        id: floatingWindowsContainer
+                    ChartWorkspace {
+                        id: workspaceView
                         anchors.fill: parent
                         z: 10
-                        clip: true
-
-                        property var activeWindows: ({})
+                        workspaceController: applicationWindow.workspaceController
                     }
                 }
 
@@ -104,82 +123,58 @@ ApplicationWindow {
                     Layout.topMargin: 10
                     Layout.bottomMargin: 10
                     Layout.rightMargin: 10
-                    // Always stay visible above any chart content (including shadows/layers)
-                    z: 10000
+                    // Always stay visible above chart content.
+                    z: 100
 
                     isCollapsed: chartLinesListCollapsed
-                    chartLineModel: chartWindow.chartLineModel
-                    signalModel: chartWindow.signalModel
-                    messageModel: chartWindow.messageModel
-                    availableCharts: chartWindow.availableCharts
+                    chartLineModel: applicationWindow.workspaceController ? applicationWindow.workspaceController.chartLineModel : null
+                    signalModel: applicationWindow.workspaceController ? applicationWindow.workspaceController.signalModel : null
+                    messageModel: applicationWindow.workspaceController ? applicationWindow.workspaceController.messageModel : null
+                    availableCharts: applicationWindow.workspaceController ? applicationWindow.workspaceController.availableCharts : []
 
                     onCollapseToggled: {
                         chartLinesListCollapsed = !chartLinesListCollapsed
                     }
 
                     onLineVisibilityToggled: function(lineKey, visible) {
-                        if (chartWindow && chartWindow.chartLineModel) {
-                            chartWindow.chartLineModel.toggleVisibility(lineKey, visible)
+                        if (applicationWindow.workspaceController) {
+                            applicationWindow.workspaceController.setLineVisibility(lineKey, visible)
                         }
                     }
 
                     onLineSelected: function(lineKey) {
-                        if (chartWindow) {
-                            var line = chartWindow.chartLineModel.getLineByKey(lineKey)
-                            if (line && chartWindow.editChartLineDialog) {
-                                chartWindow.editChartLineDialog.loadChartLine(lineKey, line.uniqueId, line.displayName, line.color, line.interfaceType, line.dataId, line.chartTitle)
-                                chartWindow.editChartLineDialog.open()
-                            }
-                        }
+                        workspaceDialogs.openEditLine(lineKey)
                     }
 
                     onAddSignalRequested: {
-                        if (chartWindow && chartWindow.addChartLineDialog) {
-                            chartWindow.addChartLineDialog.open()
-                        }
+                        workspaceDialogs.openAddSignal()
                     }
 
                     onRemoveSignalRequested: function(uniqueId) {
-                        if (chartWindow && chartWindow.removeSignal) {
-                            chartWindow.removeSignal(uniqueId)
-                        }
+                        if (applicationWindow.workspaceController) applicationWindow.workspaceController.removeSignal(uniqueId)
                     }
 
                     onSetSignalChartsRequested: function(uniqueId, assignments) {
-                        if (chartWindow && chartWindow.setSignalCharts) {
-                            chartWindow.setSignalCharts(uniqueId, assignments)
-                        }
+                        if (applicationWindow.workspaceController) applicationWindow.workspaceController.setSignalCharts(uniqueId, assignments)
                     }
 
                     onCreateChartRequested: function(chartType, chartTitle, chartId) {
-                        if (chartWindow && chartWindow.createManagedChart) {
-                            chartWindow.createManagedChart(chartType, chartTitle, chartId)
-                        }
+                        if (applicationWindow.workspaceController) applicationWindow.workspaceController.createChart(chartType, chartTitle, chartId)
                     }
 
                     onRemoveChartRequested: function(chartId) {
-                        if (chartWindow && chartWindow.removeManagedChart) {
-                            chartWindow.removeManagedChart(chartId)
-                        }
+                        if (applicationWindow.workspaceController) applicationWindow.workspaceController.removeChart(chartId)
                     }
 
                     onRenameChartRequested: function(chartId, chartTitle) {
-                        if (chartWindow && chartWindow.renameManagedChart) {
-                            chartWindow.renameManagedChart(chartId, chartTitle)
-                        }
+                        if (applicationWindow.workspaceController) applicationWindow.workspaceController.renameChart(chartId, chartTitle)
                     }
 
-                    Behavior on width {
-                        NumberAnimation {
-                            duration: 250
-                            easing.type: Easing.InOutQuad
-                        }
-                    }
                 }
             }
         }
 
-        // Floating Action Button - bottom-right corner (adjusts position based on panel state)
+        // Primary workspace action. Its label avoids an ambiguous, icon-only "+" action.
         FloatingActionButton {
             id: fabButton
             anchors.right: parent.right
@@ -188,18 +183,8 @@ ApplicationWindow {
             anchors.bottomMargin: 20
             z: 110
 
-            onClicked: {
-                if (chartWindow && chartWindow.addChartLineDialog) {
-                    chartWindow.addChartLineDialog.open()
-                }
-            }
-
-            Behavior on anchors.rightMargin {
-                NumberAnimation {
-                    duration: 250
-                    easing.type: Easing.InOutQuad
-                }
-            }
+            label: qsTr("New chart")
+            onClicked: chartLinesList.openCreateChartDialog()
         }
 
         Footer {
@@ -209,13 +194,10 @@ ApplicationWindow {
             anchors.bottom: parent.bottom
         }
 
-        // ChartWindow - kept for test functions and data model but hidden
-        ChartWindow {
-            id: chartWindow
-            visible: false
-            width: 0
-            height: 0
-            objectName: "chartWindow"
+        WorkspaceDialogs {
+            id: workspaceDialogs
+            anchors.fill: parent
+            workspaceController: applicationWindow.workspaceController
         }
     }
 
@@ -223,20 +205,6 @@ ApplicationWindow {
         id: navDrawer
         window: applicationWindow
         settingsPopup: settingsPopup
-    }
-
-    Drawer {
-        id: settingsDrawer
-        width: Math.min(applicationWindow.width * 0.4, 420)
-        height: applicationWindow.height
-        interactive: true
-        modal: true
-
-        contentItem: Item {
-            SettingsViews.Settings {
-                Layout.fillWidth: true
-                Layout.fillHeight: true            }
-        }
     }
 
     Popup {
@@ -248,8 +216,11 @@ ApplicationWindow {
         focus: true
         closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutsideParent
 
-        contentItem: SettingsViews.Settings {
-            id: settings
+        contentItem: Loader {
+            id: settingsLoader
+            anchors.fill: parent
+            asynchronous: false
+            source: "Settings/Settings.qml"
         }
     }
 }

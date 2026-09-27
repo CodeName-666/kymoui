@@ -1,16 +1,13 @@
 import QtQuick 6.4
 import QtQuick.Controls 6.4
 import QtQuick.Layouts 1.15
-import Common 1.0
-import Backend 1.0
-import PlotterUi 1.0
 
 /**
  * XYChartView.qml
  *
  * XY chart view for floating windows.
  * This is a simple wrapper around XYChartRenderer.
- * Chart lines are managed centrally in the main window, not per-chart.
+ * State and routing are owned by WorkspaceController. This item only renders.
  */
 Item {
     id: root
@@ -26,8 +23,7 @@ Item {
     property real initialYMin: 0
     property real initialYMax: 10
 
-    // Reference to the central chart line model (passed from App)
-    property var chartLineModel: null
+    property bool updatesSuspended: false
 
     // Internal reference to the actual renderer (for internal use)
     property var _internalRenderer: chartRenderer
@@ -44,9 +40,7 @@ Item {
         initialYMin: root.initialYMin
         initialYMax: root.initialYMax
         useScatterSeries: root.chartType === "xy_scatter"
-
-        // Pass the chart line model reference (if provided)
-        _chartLineModel: root.chartLineModel
+        updatesSuspended: root.updatesSuspended
     }
 
     /*******************************************************************
@@ -54,7 +48,7 @@ Item {
      ******************************************************************/
 
     /**
-     * Create a new line and add it to the central model
+     * Create a new rendered line. WorkspaceController owns its model entry.
      * @param uniqueId - Unique identifier for the line
      * @param displayName - Display name for the line
      * @param color - Line color (hex string)
@@ -62,27 +56,8 @@ Item {
      * @param dataId - Data stream identifier
      */
     function createLine(uniqueId, displayName, color, interfaceType, dataId) {
-        // Create line in renderer
         var lineSeries = root._internalRenderer.createLine(uniqueId, displayName, color)
-
-        // Add to central model if available
-        if (root.chartLineModel) {
-            // Keep 0 as valid dataId (don't coerce to empty string).
-            var safeDataId = (dataId !== undefined && dataId !== null) ? dataId : ""
-            root.chartLineModel.addLine(
-                uniqueId,
-                displayName,
-                color,
-                interfaceType || "Manual",
-                safeDataId,
-                {},  // interfaceSettings
-                lineSeries,
-                root.chartId,      // Chart ID
-                root.chartTitle    // Chart Title
-            )
-        }
-
-        Logger.log_info("XYChartView: Created line '" + displayName + "' with ID " + uniqueId + " for chart " + root.chartId)
+        console.log("XYChartView: Created line '" + displayName + "' with ID " + uniqueId + " for chart " + root.chartId)
         return lineSeries
     }
 
@@ -92,22 +67,24 @@ Item {
      */
     function removeLine(uniqueId) {
         root._internalRenderer.removeLine(uniqueId)
-        if (root.chartLineModel) {
-            root.chartLineModel.removeLineForChart(uniqueId, root.chartId)
-        }
-        Logger.log_info("XYChartView: Removed line " + uniqueId)
+        console.log("XYChartView: Removed line " + uniqueId)
     }
 
     /**
-     * Get a line by ID from the central model
+     * Get a rendered line by ID
      * @param uniqueId - Unique identifier
      * @return Line object from model or null
      */
     function getLine(uniqueId) {
-        if (root.chartLineModel) {
-            return root.chartLineModel.getLineForChart(uniqueId, root.chartId)
-        }
-        return null
+        return root._internalRenderer.getLine(uniqueId)
+    }
+
+    function updateLineProperties(uniqueId, valueField, displayName, color, visible) {
+        root._internalRenderer.updateLine(uniqueId, {
+            name: displayName,
+            color: color,
+            visible: visible
+        })
     }
 
     /**
@@ -173,10 +150,10 @@ Item {
     }
 
     Component.onCompleted: {
-        Logger.log_info("XYChartView initialized for chart: " + root.chartId)
+        console.log("XYChartView initialized for chart: " + root.chartId)
     }
 
     Component.onDestruction: {
-        Logger.log_info("XYChartView destroyed for chart: " + root.chartId)
+        console.log("XYChartView destroyed for chart: " + root.chartId)
     }
 }

@@ -9,6 +9,7 @@ QtObject {
     signal append_graph_points_batch_3d(var uniqueId, var points)
     // High-level message update (for Messages table / inspection)
     signal message_received(var message)
+    signal signals_removed(var uniqueIds)
     signal scrollRight(var pixel)
     signal com_port_update(var portList)
     signal ui_setup(var settings)

@@ -22,6 +22,9 @@ ChartWindowUi{
     property var signalModel: SignalModel {}  // Global registry of signals (uniqueId -> metadata)
     property var messageModel: MessageModel {}  // Latest message values/timing (for Messages table)
     property var availableCharts: []
+    // The multi-window workspace uses this instance only as a model/controller.
+    // Standalone ChartWindow users keep the visible legacy chart by default.
+    property bool dataRenderingEnabled: true
     property alias addChartLineDialog: addChartLineDialog
     property alias editChartLineDialog: editChartLineDialog
     property alias connectionManagerDialog: connectionManagerDialog
@@ -342,6 +345,9 @@ ChartWindowUi{
 
         // Calculate mouse position in chart coordinates
         var plotArea = chart.plotArea
+        if (plotArea.width <= 0 || plotArea.height <= 0) {
+            return
+        }
         var mouseXRatio = (chartMouseArea.mouseX - plotArea.x) / plotArea.width
         var mouseYRatio = (chartMouseArea.mouseY - plotArea.y) / plotArea.height
 
@@ -369,15 +375,22 @@ ChartWindowUi{
             if(events !== undefined && events !== null)
             {
                 events.newGraph.connect(newGraph)
-                events.append_graph_point.connect(appendGraphPoint)
-                events.append_graph_points_batch.connect(appendGraphPointsBatch)
+                if (chartWindow.dataRenderingEnabled) {
+                    events.append_graph_point.connect(appendGraphPoint)
+                    events.append_graph_points_batch.connect(appendGraphPointsBatch)
+                    events.scrollRight.connect(chart.scrollRight)
+                }
                 if (events.message_received) {
                     events.message_received.connect(onMessageReceived)
                 }
-                events.scrollRight.connect(chart.scrollRight)
+                if (events.signals_removed) {
+                    events.signals_removed.connect(onSignalsRemoved)
+                }
             }
-            controller.set_plot_area(chart.plotArea)
-            controller.set_axis(xAxis,yAxis)
+            if (chartWindow.dataRenderingEnabled) {
+                controller.set_plot_area(chart.plotArea)
+                controller.set_axis(xAxis,yAxis)
+            }
         }
         refreshAvailableCharts()
         _syncSignalModelFromLines()
@@ -387,6 +400,24 @@ ChartWindowUi{
     function onMessageReceived(message) {
         if (!messageModel || !messageModel.addOrUpdateFromBackend) return
         messageModel.addOrUpdateFromBackend(message)
+    }
+
+    function onSignalsRemoved(uniqueIds) {
+        if (!uniqueIds) return
+        for (var i = 0; i < uniqueIds.length; i++) {
+            var uniqueId = uniqueIds[i]
+            var lineKeys = []
+            for (var j = 0; j < chartLineModel.count; j++) {
+                var line = chartLineModel.get(j)
+                if (line.uniqueId === uniqueId) lineKeys.push(line.lineKey)
+            }
+            for (var k = 0; k < lineKeys.length; k++) removeChartLine(lineKeys[k])
+            if (signalModel && signalModel.removeSignal) signalModel.removeSignal(uniqueId)
+            if (messageModel && messageModel.removeMessage) messageModel.removeMessage(uniqueId)
+
+            var controller = appController !== undefined && appController !== null ? appController : App.get_app()
+            if (controller !== undefined && controller !== null) controller.remove_chart_line(uniqueId)
+        }
     }
 
     function _extractDataIdFromUniqueId(uniqueId) {
@@ -416,6 +447,10 @@ ChartWindowUi{
         var dataId = _extractDataIdFromUniqueId(uniqueId)
         if (signalModel && signalModel.addOrUpdate) {
             signalModel.addOrUpdate(uniqueId, displayName, color, interfaceType, dataId, {})
+        }
+
+        if (!chartWindow.dataRenderingEnabled) {
+            return
         }
 
         // If this uniqueId is already assigned to another chart, don't create it on the main chart.
@@ -672,9 +707,8 @@ ChartWindowUi{
             return
         } else if (chartWindow.appRoot && chartWindow.appRoot.floatingWindowsContainer) {
             var win = chartWindow.appRoot.floatingWindowsContainer.activeWindows[line.chartId]
-            if (win && win.chartRenderer && win.chartRenderer.removeLine) {
-                // XYChartView.removeLine already updates the central model.
-                win.chartRenderer.removeLine(line.uniqueId, line.valueField)
+            if (win && win.unassignSignal) {
+                win.unassignSignal(line.uniqueId, line.valueField)
                 Logger.log_info("ChartWindow: Removed line instance via chart renderer: " + lineKey)
                 return
             }
@@ -695,12 +729,13 @@ ChartWindowUi{
     function refreshAvailableCharts() {
         var charts = []
 
-        // Include main chart so signals can always be (re)assigned even if no floating windows exist.
-        charts.push({
-            "chartId": "main",
-            "chartTitle": "Main Chart",
-            "chartType": "xy_line"
-        })
+        if (chartWindow.dataRenderingEnabled) {
+            charts.push({
+                "chartId": "main",
+                "chartTitle": "Main Chart",
+                "chartType": "xy_line"
+            })
+        }
 
         if (chartWindow.appRoot && chartWindow.appRoot.floatingWindowsContainer) {
             var wins = chartWindow.appRoot.floatingWindowsContainer.activeWindows
@@ -789,6 +824,7 @@ ChartWindowUi{
             var assign = assignments[i]
             if (!assign || !assign.chartId) continue
             var chartId = assign.chartId
+            if (chartId === "main" && !chartWindow.dataRenderingEnabled) continue
             var chartType = assign.chartType || _getChartTypeForId(chartId)
             var valueField = assign.valueField
             if (!chartType && valueField) {
@@ -852,8 +888,8 @@ ChartWindowUi{
 
             if (chartWindow.appRoot && chartWindow.appRoot.floatingWindowsContainer) {
                 var win = chartWindow.appRoot.floatingWindowsContainer.activeWindows[chartId]
-                if (win && win.chartRenderer && win.chartRenderer.createLine) {
-                    win.chartRenderer.createLine(uniqueId, baseLine.displayName, baseLine.color, baseLine.interfaceType, baseLine.dataId, valueField)
+                if (win && win.assignSignal) {
+                    win.assignSignal(uniqueId, baseLine.displayName, baseLine.color, baseLine.interfaceType, baseLine.dataId, valueField)
                 }
             }
         }

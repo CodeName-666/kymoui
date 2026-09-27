@@ -39,6 +39,8 @@ QtObject {
      *                  x, y, z, timestamp, t, rxTime, cycleTime, rxCount
      */
     signal message_received(var message)
+    /** Remove all UI state for signals owned by a deleted connection. */
+    signal signals_removed(var uniqueIds)
     /**
      * @brief Scroll Right Event
      */

@@ -1,8 +1,7 @@
 import QtQuick 6.4
 import QtQuick.Controls 6.4
 import QtCharts 2.3
-import Backend 1.0
-import Common 1.0
+import Theme 1.0
 
 /**
  * TimeSeriesRenderer.qml
@@ -36,26 +35,38 @@ Item {
     property bool autoScaleY: true  // Auto-scale Y axis to fit data
     property real initialYMin: 0
     property real initialYMax: 10
+    property bool updatesSuspended: false
 
     // Internal state
     property var _graphs: ({})  // Dictionary of line series by lineKey
     property var _graphsByUniqueId: ({})  // uniqueId -> [lineKey]
-    // Reference to the central chart line model (passed from App for floating windows)
-    property var chartLineModel: null
-    property bool _backendConnected: false
-    property var _backendEvents: null
     property real _currentTime: 0  // Current time position (in seconds)
     property real _startTime: 0    // Start time of visible window
+    property var _pendingPoints: ({})
+    property int maxPendingPointsPerSignal: 2000
+
+    onUpdatesSuspendedChanged: {
+        if (!updatesSuspended) flushPendingPoints()
+    }
+    // Axis scans touch every visible point. Coalesce them so high-frequency
+    // batches do not rescan the complete series for every delivery.
+    Timer {
+        id: yAxisUpdateTimer
+        interval: 125
+        repeat: false
+        onTriggered: if (root.autoScaleY) root.updateYAxisRange()
+    }
 
     // Chart view component
     ChartView {
         id: chart
         anchors.fill: parent
-        antialiasing: true
-        backgroundColor: "#1e1e1e"
+        // QtCharts antialiasing is expensive for continuously changing series.
+        antialiasing: false
+        backgroundColor: AppTheme.surfaces.interfaceBackground
         legend.visible: true
         legend.alignment: Qt.AlignBottom
-        legend.labelColor: "#ffffff"
+        legend.labelColor: AppTheme.text.primary
         legend.font.pixelSize: 11
 
         theme: ChartView.ChartThemeDark
@@ -68,9 +79,9 @@ Item {
             max: root.timeWindow
             labelFormat: "%.1f s"
             labelsFont.pixelSize: 10
-            labelsColor: "#cccccc"
-            gridLineColor: "#404040"
-            minorGridLineColor: "#2a2a2a"
+            labelsColor: AppTheme.text.secondary
+            gridLineColor: AppTheme.borders.subtle
+            minorGridLineColor: AppTheme.surfaces.muted
             titleText: "Time (s)"
             titleFont.pixelSize: 11
             titleFont.bold: true
@@ -83,9 +94,9 @@ Item {
             max: root.initialYMax
             labelFormat: "%.2f"
             labelsFont.pixelSize: 10
-            labelsColor: "#cccccc"
-            gridLineColor: "#404040"
-            minorGridLineColor: "#2a2a2a"
+            labelsColor: AppTheme.text.secondary
+            gridLineColor: AppTheme.borders.subtle
+            minorGridLineColor: AppTheme.surfaces.muted
             titleText: "Value"
             titleFont.pixelSize: 11
             titleFont.bold: true
@@ -152,8 +163,8 @@ Item {
         }
 
         Button {
-            text: autoScroll ? "⏸" : "▶"
-            width: 40
+            text: autoScroll ? qsTr("Pause") : qsTr("Follow")
+            width: 60
             height: 30
             onClicked: toggleAutoScroll()
             ToolTip.visible: hovered
@@ -170,12 +181,7 @@ Item {
 
     // Component initialization
     Component.onCompleted: {
-        connectToBackend()
         console.log("TimeSeriesRenderer initialized for chart:", chartId)
-    }
-
-    Component.onDestruction: {
-        disconnectFromBackend()
     }
 
     // ========== PUBLIC API ==========
@@ -236,7 +242,7 @@ Item {
         }
 
         // Create new line series
-        var series = chart.createSeries(ChartView.SeriesTypeLine, _formatDisplayName(displayName, field), timeAxis, valueAxis)
+        var series = chart.createSeries(ChartView.SeriesTypeLine, displayName, timeAxis, valueAxis)
         series.color = color || Qt.rgba(Math.random(), Math.random(), Math.random(), 1)
         series.width = 2
         series.useOpenGL = false
@@ -253,23 +259,6 @@ Item {
             lastTime: 0
         }
         _registerLineKey(uniqueId, lineKey)
-
-        // Register with central model so signal assignment shows up in the manager UI
-        if (root.chartLineModel && root.chartLineModel.addLine) {
-            var safeDataId = (dataId !== undefined && dataId !== null) ? dataId : ""
-            root.chartLineModel.addLine(
-                uniqueId,
-                _formatDisplayName(displayName, field),
-                series.color,
-                interfaceType || "Unknown",
-                safeDataId,
-                {},          // interfaceSettings
-                series,      // seriesRef
-                root.chartId,
-                root.chartTitle,
-                field
-            )
-        }
 
         console.log("Created time series line:", uniqueId, displayName, field)
         return series
@@ -306,14 +295,16 @@ Item {
         }
 
         // Auto-scale Y axis if enabled
-        if (autoScaleY) {
-            updateYAxisRange()
-        }
+        scheduleYAxisUpdate()
     }
 
     function appendPoint(uniqueId, timestamp, value) {
         var graphs = _getGraphsForUniqueId(uniqueId)
         if (graphs.length === 0) return
+        if (root.updatesSuspended) {
+            queuePendingPoints(uniqueId, [[value, value, timestamp, true]])
+            return
+        }
         for (var i = 0; i < graphs.length; i++) {
             _appendPointForGraph(graphs[i], timestamp, value)
         }
@@ -323,18 +314,20 @@ Item {
      * Append points in batch (optimized)
      */
     function appendPointsBatch(uniqueId, points) {
-        if (!points || points.length === 0) {
+        var graphs = _getGraphsForUniqueId(uniqueId)
+        if (graphs.length === 0) return
+        if (root.updatesSuspended) {
+            queuePendingPoints(uniqueId, points)
             return
         }
-
-        var graphs = _getGraphsForUniqueId(uniqueId)
-        if (graphs.length === 0) {
+        if (!points || points.length === 0) {
             return
         }
 
         for (var i = 0; i < points.length; i++) {
             var point = points[i]
-            // Backend can send [x, y] or [x, y, t] tuples; prefer t for time-series.
+            // Backend can send [x, y], [x, y, t] or
+            // [x, y, t, hasExplicitX]; time series always prefers t.
             var timestamp = (point.length !== undefined && point.length > 2 && point[2] !== undefined && point[2] !== null) ? point[2] : point[0]
             var yValue = point[1]
             var xValue = point[0]
@@ -374,9 +367,7 @@ Item {
         }
 
         // Auto-scale Y
-        if (autoScaleY) {
-            updateYAxisRange()
-        }
+        scheduleYAxisUpdate()
     }
 
     /**
@@ -401,9 +392,6 @@ Item {
             chart.removeSeries(graph.series)
             delete _graphs[lineKey]
             _unregisterLineKey(uniqueId, lineKey)
-            if (root.chartLineModel && root.chartLineModel.removeLineForChart) {
-                root.chartLineModel.removeLineForChart(uniqueId, root.chartId, graph.valueField)
-            }
             console.log("Removed time series line:", uniqueId, graph.valueField)
         }
         return true
@@ -457,10 +445,24 @@ Item {
     /**
      * Get a line by uniqueId
      */
-    function getLine(uniqueId) {
+    function getLine(uniqueId, valueField) {
+        if (valueField !== undefined && valueField !== null && valueField !== "") {
+            return _graphs[_buildLineKey(uniqueId, valueField)] || null
+        }
         var keys = _graphsByUniqueId[uniqueId] || []
         if (keys.length === 0) return null
         return _graphs[keys[0]] || null
+    }
+
+    function updateLineProperties(uniqueId, valueField, displayName, color, visible) {
+        var graph = getLine(uniqueId, valueField)
+        if (!graph) return
+        graph.displayName = displayName
+        graph.color = color
+        graph.visible = visible
+        graph.series.name = displayName
+        graph.series.color = color
+        graph.series.visible = visible
     }
 
     // ========== ZOOM AND PAN FUNCTIONS ==========
@@ -485,6 +487,9 @@ Item {
 
     function pan(dx, dy) {
         var plotArea = chart.plotArea
+        if (plotArea.width <= 0 || plotArea.height <= 0) {
+            return
+        }
         var timeRange = timeAxis.max - timeAxis.min
         var valueRange = valueAxis.max - valueAxis.min
 
@@ -578,66 +583,27 @@ Item {
         }
     }
 
-    // ========== BACKEND CONNECTION ==========
-
-    function connectToBackend() {
-        if (_backendConnected) {
-            console.warn("Already connected to backend")
-            return
-        }
-
-        try {
-            // Get backend event handler
-            var appController = App.get_app()
-            if (!appController || !appController.events) {
-                console.warn("Backend events not available yet")
-                return
-            }
-
-            _backendEvents = appController.events()
-
-            // Connect to data point signals
-            _backendEvents.append_graph_point.connect(handleGraphPoint)
-            _backendEvents.append_graph_points_batch.connect(handleGraphPointsBatch)
-
-            _backendConnected = true
-            console.log("TimeSeriesRenderer connected to backend for chart:", chartId)
-        } catch (e) {
-            console.error("Failed to connect to backend:", e)
+    function scheduleYAxisUpdate() {
+        if (root.autoScaleY && !yAxisUpdateTimer.running) {
+            yAxisUpdateTimer.start()
         }
     }
 
-    function disconnectFromBackend() {
-        if (!_backendConnected || !_backendEvents) {
-            return
+    function queuePendingPoints(uniqueId, points) {
+        if (!points || points.length === 0) return
+        var pending = root._pendingPoints[uniqueId] || []
+        for (var i = 0; i < points.length; i++) pending.push(points[i])
+        if (pending.length > root.maxPendingPointsPerSignal) {
+            pending = pending.slice(pending.length - root.maxPendingPointsPerSignal)
         }
-
-        try {
-            _backendEvents.append_graph_point.disconnect(handleGraphPoint)
-            _backendEvents.append_graph_points_batch.disconnect(handleGraphPointsBatch)
-            _backendConnected = false
-            console.log("TimeSeriesRenderer disconnected from backend")
-        } catch (e) {
-            console.error("Failed to disconnect from backend:", e)
-        }
+        root._pendingPoints[uniqueId] = pending
     }
 
-    function handleGraphPoint(uniqueId, point) {
-        if (!point) return
-
-        var t = (point.t !== undefined && point.t !== null) ? point.t : (point.x !== undefined ? point.x : 0)
-        var y = point.y !== undefined ? point.y : (point["y"] !== undefined ? point["y"] : 0)
-        var x = point.x !== undefined ? point.x : (point["x"] !== undefined ? point["x"] : 0)
-
-        var graphs = _getGraphsForUniqueId(uniqueId)
-        for (var i = 0; i < graphs.length; i++) {
-            var graph = graphs[i]
-            var value = graph.valueField === "x" ? x : y
-            _appendPointForGraph(graph, t, value)
+    function flushPendingPoints() {
+        var pendingBySignal = root._pendingPoints
+        root._pendingPoints = ({})
+        for (var uniqueId in pendingBySignal) {
+            root.appendPointsBatch(uniqueId, pendingBySignal[uniqueId])
         }
-    }
-
-    function handleGraphPointsBatch(uniqueId, points) {
-        appendPointsBatch(uniqueId, points)
     }
 }

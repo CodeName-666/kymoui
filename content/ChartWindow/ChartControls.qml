@@ -1,6 +1,7 @@
 import QtQuick 6.4
 import QtQuick.Controls 6.4
 import QtQuick.Layouts 1.15
+import Theme 1.0
 
 // Compact, modern zoom controls that appear on hover
 Rectangle {
@@ -15,9 +16,9 @@ Rectangle {
     property bool expanded: false
     property int buttonSize: 32
 
-    color: "#CC2b2b2b"
+    color: Qt.rgba(20 / 255, 26 / 255, 36 / 255, 0.85)
     radius: 6
-    border.color: "#404040"
+    border.color: AppTheme.borders.primary
     border.width: 1
 
     // Auto-hide on mouse exit
@@ -60,15 +61,15 @@ Rectangle {
             ToolTip.delay: 500
 
             background: Rectangle {
-                color: parent.hovered ? "#404040" : "transparent"
+                color: parent.hovered ? AppTheme.surfaces.muted : "transparent"
                 radius: 4
-                border.color: parent.hovered ? "#606060" : "transparent"
+                border.color: parent.hovered ? AppTheme.borders.subtle : "transparent"
             }
 
             contentItem: Text {
                 text: parent.text
                 font: parent.font
-                color: "#ffffff"
+                color: AppTheme.text.primary
                 horizontalAlignment: Text.AlignHCenter
                 verticalAlignment: Text.AlignVCenter
             }
@@ -90,15 +91,15 @@ Rectangle {
             ToolTip.delay: 500
 
             background: Rectangle {
-                color: parent.hovered ? "#404040" : "transparent"
+                color: parent.hovered ? AppTheme.surfaces.muted : "transparent"
                 radius: 4
-                border.color: parent.hovered ? "#606060" : "transparent"
+                border.color: parent.hovered ? AppTheme.borders.subtle : "transparent"
             }
 
             contentItem: Text {
                 text: parent.text
                 font: parent.font
-                color: "#ffffff"
+                color: AppTheme.text.primary
                 horizontalAlignment: Text.AlignHCenter
                 verticalAlignment: Text.AlignVCenter
             }
@@ -111,7 +112,7 @@ Rectangle {
             Layout.preferredWidth: 1
             Layout.preferredHeight: buttonSize - 8
             Layout.alignment: Qt.AlignVCenter
-            color: "#404040"
+            color: AppTheme.borders.subtle
         }
 
         // Reset Zoom
@@ -127,15 +128,15 @@ Rectangle {
             ToolTip.delay: 500
 
             background: Rectangle {
-                color: parent.hovered ? "#404040" : "transparent"
+                color: parent.hovered ? AppTheme.surfaces.muted : "transparent"
                 radius: 4
-                border.color: parent.hovered ? "#606060" : "transparent"
+                border.color: parent.hovered ? AppTheme.borders.subtle : "transparent"
             }
 
             contentItem: Text {
                 text: parent.text
                 font: parent.font
-                color: "#ffffff"
+                color: AppTheme.text.primary
                 horizontalAlignment: Text.AlignHCenter
                 verticalAlignment: Text.AlignVCenter
             }
@@ -156,15 +157,15 @@ Rectangle {
             ToolTip.delay: 500
 
             background: Rectangle {
-                color: parent.hovered ? "#404040" : "transparent"
+                color: parent.hovered ? AppTheme.surfaces.muted : "transparent"
                 radius: 4
-                border.color: parent.hovered ? "#606060" : "transparent"
+                border.color: parent.hovered ? AppTheme.borders.subtle : "transparent"
             }
 
             contentItem: Text {
                 text: parent.text
                 font: parent.font
-                color: "#ffffff"
+                color: AppTheme.text.primary
                 horizontalAlignment: Text.AlignHCenter
                 verticalAlignment: Text.AlignVCenter
             }

@@ -2,11 +2,12 @@ import QtQuick 6.4
 import QtQuick.Controls 6.4
 import QtQuick.Layouts 1.15
 import "../StatusIndicator"
+import "../Theme"
 
 Rectangle {
-    color: "#f5f5f5"
-    border.color: "#d0d0d0"
-    height: 36
+    color: AppTheme.surfaces.card
+    border.color: AppTheme.borders.primary
+    height: 38
 
     property alias keepAliveStatus: keepAliveStatus
     property alias keepAliveInfoText: keepAliveInfo.text
@@ -40,7 +41,7 @@ Rectangle {
             id: keepAliveInfo
             Layout.fillHeight: true
             text: "Ready"
-            color: "#333"
+            color: AppTheme.text.secondary
             horizontalAlignment: Text.AlignLeft
             verticalAlignment: Text.AlignVCenter
             elide: Text.ElideRight

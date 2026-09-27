@@ -10,16 +10,14 @@ SettingsUi {
         fileMode: FileDialog.SaveFile
         nameFilters: ["JSON Config files (*.json)"]
         defaultSuffix: "json"
-        currentFolder: "file:///d:/Projekte/Python/Plotter/PlotterApp/config"
-        onAccepted: saveConfigToFile(selectedFile)
+        onAccepted: settings_menu.saveConfigToFile(selectedFile)
     }
 
     FileDialog {
         id: loadConfigDialog
         fileMode: FileDialog.OpenFile
         nameFilters: ["JSON Config files (*.json)"]
-        currentFolder: "file:///d:/Projekte/Python/Plotter/PlotterApp/config"
-        onAccepted: loadConfigFromFile(selectedFile)
+        onAccepted: settings_menu.loadConfigFromFile(selectedFile)
     }
 
     Component.onCompleted: {
@@ -49,22 +47,19 @@ SettingsUi {
 
     function saveConfigToFile(fileUrl) {
         Logger.log_info("Settings: Saving configuration to " + fileUrl)
-
-        // Note: The actual config file is managed by the backend
-        // This is a placeholder for future implementation
-        Logger.log_warning("Settings: Config save to file not yet implemented - use backend save_settings_to_config()")
-
-        // For now, just save the current config
-        Backend.save_settings_to_config()
-        Logger.log_info("Settings: Configuration saved to default location")
+        if (Backend.save_configuration_to_file(fileUrl)) {
+            Logger.log_info("Settings: Configuration exported successfully")
+        } else {
+            Logger.log_error("Settings: Configuration export failed")
+        }
     }
 
     function loadConfigFromFile(fileUrl) {
         Logger.log_info("Settings: Loading configuration from " + fileUrl)
-
-        // Note: The actual config file is managed by the backend
-        // This is a placeholder for future implementation
-        Logger.log_warning("Settings: Config load from file not yet implemented")
-        Logger.log_info("Settings: Backend loads config.json automatically on startup")
+        if (Backend.load_configuration_from_file(fileUrl)) {
+            Logger.log_info("Settings: Configuration imported successfully")
+        } else {
+            Logger.log_error("Settings: Configuration import failed")
+        }
     }
 }

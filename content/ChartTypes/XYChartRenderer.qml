@@ -1,9 +1,7 @@
 import QtQuick 6.4
 import QtQuick.Controls 6.4
 import QtCharts 2.3
-import Backend 1.0
-import Common 1.0
-import PlotterUi 1.0
+import Theme 1.0
 
 /**
  * XYChartRenderer.qml
@@ -32,22 +30,26 @@ Item {
     // QtCharts OpenGL acceleration can render blank on some setups (e.g. software rendering).
     // Keep disabled by default for reliability; enable explicitly if needed.
     property bool useOpenGL: false
+    property bool updatesSuspended: false
 
     // Internal state
     property var _graphs: ({})  // Dictionary of line series by uniqueId
-    property var _chartLineModel: null  // Will be set by backend
-    property bool _backendConnected: false
-    property var _backendEvents: null
+    property var _pendingPoints: ({})
+    property int maxPendingPointsPerSignal: 2000
 
+    onUpdatesSuspendedChanged: {
+        if (!updatesSuspended) flushPendingPoints()
+    }
     // Chart view component
     ChartView {
         id: chart
         anchors.fill: parent
-        antialiasing: true
-        backgroundColor: "#1e1e1e"
+        // Continuous charts stay responsive at high point counts without MSAA.
+        antialiasing: false
+        backgroundColor: AppTheme.surfaces.interfaceBackground
         legend.visible: true
         legend.alignment: Qt.AlignBottom
-        legend.labelColor: "#ffffff"
+        legend.labelColor: AppTheme.text.primary
         legend.font.pixelSize: 11
 
         theme: ChartView.ChartThemeDark
@@ -60,9 +62,9 @@ Item {
             max: root.initialXMax
             labelFormat: "%.2f"
             labelsFont.pixelSize: 10
-            labelsColor: "#cccccc"
-            gridLineColor: "#404040"
-            minorGridLineColor: "#2a2a2a"
+            labelsColor: AppTheme.text.secondary
+            gridLineColor: AppTheme.borders.subtle
+            minorGridLineColor: AppTheme.surfaces.muted
             titleText: "X"
             titleFont.pixelSize: 11
             titleFont.bold: true
@@ -75,9 +77,9 @@ Item {
             max: root.initialYMax
             labelFormat: "%.2f"
             labelsFont.pixelSize: 10
-            labelsColor: "#cccccc"
-            gridLineColor: "#404040"
-            minorGridLineColor: "#2a2a2a"
+            labelsColor: AppTheme.text.secondary
+            gridLineColor: AppTheme.borders.subtle
+            minorGridLineColor: AppTheme.surfaces.muted
             titleText: "Y"
             titleFont.pixelSize: 11
             titleFont.bold: true
@@ -96,6 +98,9 @@ Item {
 
                 // Calculate mouse position in chart coordinates
                 var plotArea = chart.plotArea
+                if (plotArea.width <= 0 || plotArea.height <= 0) {
+                    return
+                }
                 var mouseXRatio = (chartMouseArea.mouseX - plotArea.x) / plotArea.width
                 var mouseYRatio = (chartMouseArea.mouseY - plotArea.y) / plotArea.height
 
@@ -133,6 +138,9 @@ Item {
 
                     // Convert pixel movement to chart coordinates
                     var plotArea = chart.plotArea
+                    if (plotArea.width <= 0 || plotArea.height <= 0) {
+                        return
+                    }
                     var xRange = xAxis.max - xAxis.min
                     var yRange = yAxis.max - yAxis.min
 
@@ -154,15 +162,15 @@ Item {
     // Control panel overlay (top-right corner)
     Rectangle {
         id: controlPanel
-        width: 200
+        width: 244
         height: controlColumn.height + 20
         anchors.top: parent.top
         anchors.right: parent.right
         anchors.margins: 10
-        color: "#2d2d2d"
+        color: AppTheme.surfaces.card
         radius: 6
         opacity: 0.95
-        border.color: "#404040"
+        border.color: AppTheme.borders.primary
         border.width: 1
 
         Column {
@@ -172,8 +180,8 @@ Item {
             width: parent.width - 20
 
             Text {
-                text: "Chart Controls"
-                color: "#ffffff"
+                text: qsTr("View controls")
+                color: AppTheme.text.primary
                 font.pixelSize: 12
                 font.bold: true
                 anchors.horizontalCenter: parent.horizontalCenter
@@ -182,7 +190,7 @@ Item {
             Rectangle {
                 width: parent.width
                 height: 1
-                color: "#404040"
+                color: AppTheme.borders.subtle
             }
 
             Row {
@@ -190,8 +198,8 @@ Item {
                 anchors.horizontalCenter: parent.horizontalCenter
 
                 Button {
-                    text: "+"
-                    width: 35
+                    text: qsTr("Zoom in")
+                    width: 56
                     height: 28
                     font.pixelSize: 14
                     onClicked: root.zoomIn()
@@ -201,8 +209,8 @@ Item {
                 }
 
                 Button {
-                    text: "-"
-                    width: 35
+                    text: qsTr("Zoom out")
+                    width: 60
                     height: 28
                     font.pixelSize: 14
                     onClicked: root.zoomOut()
@@ -212,8 +220,8 @@ Item {
                 }
 
                 Button {
-                    text: "↺"
-                    width: 35
+                    text: qsTr("Reset")
+                    width: 50
                     height: 28
                     font.pixelSize: 14
                     onClicked: root.resetZoom()
@@ -223,8 +231,8 @@ Item {
                 }
 
                 Button {
-                    text: "⇲"
-                    width: 35
+                    text: qsTr("Fit")
+                    width: 42
                     height: 28
                     font.pixelSize: 14
                     onClicked: root.fitToData()
@@ -352,7 +360,7 @@ Item {
 
         _graphs[uniqueId] = series
 
-        Logger.log_info("XYChartRenderer: Created series '" + displayName + "' with ID " + uniqueId)
+        console.log("XYChartRenderer: Created series '" + displayName + "' with ID " + uniqueId)
         return series
     }
 
@@ -364,7 +372,7 @@ Item {
         if(_graphs[uniqueId]) {
             chart.removeSeries(_graphs[uniqueId])
             delete _graphs[uniqueId]
-            Logger.log_info("XYChartRenderer: Removed line " + uniqueId)
+            console.log("XYChartRenderer: Removed line " + uniqueId)
         }
     }
 
@@ -385,7 +393,9 @@ Item {
      */
     function appendPoint(uniqueId, x, y) {
         var series = _graphs[uniqueId]
-        if(!series) {
+        if(!series) return
+        if (root.updatesSuspended) {
+            queuePendingPoints(uniqueId, [[x, y]])
             return
         }
 
@@ -405,7 +415,9 @@ Item {
      */
     function appendPointsBatch(uniqueId, points) {
         var series = _graphs[uniqueId]
-        if(!series) {
+        if(!series) return
+        if (root.updatesSuspended) {
+            queuePendingPoints(uniqueId, points)
             return
         }
 
@@ -414,16 +426,28 @@ Item {
         }
 
         var maxPoints = 10000
-        var totalAfterAdd = series.count + points.length
+        var acceptedPoints = []
+        for (var p = 0; p < points.length; p++) {
+            var candidate = points[p]
+            // Backend batches use [x, y, t, hasExplicitX]. Older/manual callers
+            // without the fourth entry are treated as explicit XY for compatibility.
+            if (candidate.length > 3 && candidate[3] === false) continue
+            acceptedPoints.push(candidate)
+        }
+        if (acceptedPoints.length === 0) return
+
+        var startIndex = Math.max(0, acceptedPoints.length - maxPoints)
+        var incomingCount = acceptedPoints.length - startIndex
+        var totalAfterAdd = series.count + incomingCount
 
         if(totalAfterAdd > maxPoints) {
-            var toRemove = totalAfterAdd - maxPoints
-            series.removePoints(0, toRemove)
+            var toRemove = Math.min(series.count, totalAfterAdd - maxPoints)
+            if (toRemove > 0) series.removePoints(0, toRemove)
         }
 
         // Batch append
-        for(var i = 0; i < points.length; i++) {
-            series.append(points[i][0], points[i][1])
+        for(var i = startIndex; i < acceptedPoints.length; i++) {
+            series.append(acceptedPoints[i][0], acceptedPoints[i][1])
         }
     }
 
@@ -455,7 +479,7 @@ Item {
     function updateLine(uniqueId, properties) {
         var series = _graphs[uniqueId]
         if(!series) {
-            Logger.log_warning("XYChartRenderer: Line not found: " + uniqueId)
+            console.warn("XYChartRenderer: Line not found: " + uniqueId)
             return
         }
 
@@ -478,100 +502,28 @@ Item {
      ******************************************************************/
 
     Component.onCompleted: {
-        Logger.log_info("XYChartRenderer initialized for chart: " + root.chartId)
-
-        _tryConnectBackendEvents(40)
+        console.log("XYChartRenderer initialized for chart: " + root.chartId)
     }
 
     Component.onDestruction: {
-        Logger.log_info("XYChartRenderer destroyed for chart: " + root.chartId)
-        _disconnectBackendEvents()
+        console.log("XYChartRenderer destroyed for chart: " + root.chartId)
     }
 
-    function _tryConnectBackendEvents(attemptsLeft) {
-        if (root._backendConnected) {
-            return
+    function queuePendingPoints(uniqueId, points) {
+        if (!points || points.length === 0) return
+        var pending = root._pendingPoints[uniqueId] || []
+        for (var i = 0; i < points.length; i++) pending.push(points[i])
+        if (pending.length > root.maxPendingPointsPerSignal) {
+            pending = pending.slice(pending.length - root.maxPendingPointsPerSignal)
         }
-
-        var controller = null
-        try {
-            controller = App.get_app()
-        } catch (e) {
-            controller = null
-        }
-
-        if (!controller || typeof controller.events !== "function") {
-            if (attemptsLeft > 0) {
-                return Qt.callLater(function() { _tryConnectBackendEvents(attemptsLeft - 1) })
-            }
-            Logger.log_warning("XYChartRenderer: Backend controller not available - no live data will be shown")
-            return
-        }
-
-        var events = controller.events()
-        if (!events) {
-            if (attemptsLeft > 0) {
-                return Qt.callLater(function() { _tryConnectBackendEvents(attemptsLeft - 1) })
-            }
-            Logger.log_warning("XYChartRenderer: Backend events not available - no live data will be shown")
-            return
-        }
-
-        if (events.append_graph_point) {
-            events.append_graph_point.connect(handleGraphPoint)
-        }
-        if (events.append_graph_points_batch) {
-            events.append_graph_points_batch.connect(handleGraphPointsBatch)
-        }
-
-        root._backendEvents = events
-        root._backendConnected = true
-        Logger.log_info("XYChartRenderer: Connected to backend graph events for chart: " + root.chartId)
+        root._pendingPoints[uniqueId] = pending
     }
 
-    function _disconnectBackendEvents() {
-        if (!root._backendEvents) {
-            root._backendConnected = false
-            return
+    function flushPendingPoints() {
+        var pendingBySignal = root._pendingPoints
+        root._pendingPoints = ({})
+        for (var uniqueId in pendingBySignal) {
+            root.appendPointsBatch(uniqueId, pendingBySignal[uniqueId])
         }
-
-        try {
-            if (root._backendEvents.append_graph_point) {
-                root._backendEvents.append_graph_point.disconnect(handleGraphPoint)
-            }
-        } catch (e) {}
-
-        try {
-            if (root._backendEvents.append_graph_points_batch) {
-                root._backendEvents.append_graph_points_batch.disconnect(handleGraphPointsBatch)
-            }
-        } catch (e) {}
-
-        root._backendConnected = false
-        root._backendEvents = null
-    }
-
-    /*******************************************************************
-     * INTERNAL FUNCTIONS - Backend Event Handlers
-     ******************************************************************/
-
-    /**
-     * Handle single point from backend
-     */
-    function handleGraphPoint(uniqueId, point) {
-        if (!root || !point) return
-
-        var x = point.x !== undefined ? point.x : (point["x"] !== undefined ? point["x"] : 0)
-        var y = point.y !== undefined ? point.y : (point["y"] !== undefined ? point["y"] : 0)
-
-        root.appendPoint(uniqueId, x, y)
-    }
-
-    /**
-     * Handle batch points from backend
-     */
-    function handleGraphPointsBatch(uniqueId, points) {
-        if (!root) return
-        root.appendPointsBatch(uniqueId, points)
     }
 }

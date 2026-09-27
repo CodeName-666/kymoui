@@ -44,12 +44,22 @@ Rectangle {
             text: qsTr("Start")
             Layout.fillWidth: true
             Layout.preferredHeight: 36
+            enabled: controlsCard.appController !== null && sourceCombo.currentIndex >= 0
+            onClicked: {
+                if (!controlsCard.appController.connect())
+                    Logger.log_warning("ControlsCard: Could not start selected interface")
+            }
         }
         Button {
             id: stopButton
             text: qsTr("Stop")
             Layout.fillWidth: true
             Layout.preferredHeight: 36
+            enabled: controlsCard.appController !== null && sourceCombo.currentIndex >= 0
+            onClicked: {
+                if (!controlsCard.appController.disconnect())
+                    Logger.log_warning("ControlsCard: Could not stop selected interface")
+            }
         }
         ComboBox {
             id: sourceCombo

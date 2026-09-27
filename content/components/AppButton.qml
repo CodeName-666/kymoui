@@ -22,6 +22,7 @@ Button {
     property bool boldText: true
 
     implicitHeight: Math.max(implicitBackgroundHeight + topPadding + bottomPadding, 38)
+    focusPolicy: Qt.TabFocus
     padding: 12
     topPadding: 8
     bottomPadding: 8
@@ -32,8 +33,10 @@ Button {
               : control.down ? control.pressedBackgroundColor
               : control.hovered ? control.hoverBackgroundColor
               : control.backgroundColor
-        border.color: !control.enabled ? control.disabledBorderColor : control.borderColor
-        border.width: control.borderWidth
+        border.color: !control.enabled ? control.disabledBorderColor
+            : control.activeFocus ? AppTheme.borders.focus
+            : control.borderColor
+        border.width: control.activeFocus ? Math.max(2, control.borderWidth) : control.borderWidth
     }
 
     contentItem: Label {

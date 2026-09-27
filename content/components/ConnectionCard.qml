@@ -2,6 +2,7 @@ import QtQuick 6.4
 import QtQuick.Controls 6.4
 import QtQuick.Layouts 1.15
 import Backend 1.0
+import "../Theme"
 
 Rectangle {
     id: connectionCard
@@ -21,20 +22,12 @@ Rectangle {
 
     // Styling
     radius: 6
-    color: mouseArea.containsMouse ? "#fafafa" : "#f4f4f4"
-    border.color: status === "connected" ? "#4caf50" : "#d0d0d0"
+    color: mouseArea.containsMouse ? Qt.lighter(AppTheme.surfaces.card, 1.08) : AppTheme.surfaces.card
+    border.color: status === "connected" ? AppTheme.palette.success : AppTheme.borders.primary
     border.width: status === "connected" ? 2 : 1
 
     implicitHeight: contentLayout.implicitHeight + 16
     implicitWidth: parent ? parent.width : 300
-
-    Behavior on color {
-        ColorAnimation { duration: 150 }
-    }
-
-    Behavior on border.color {
-        ColorAnimation { duration: 150 }
-    }
 
     MouseArea {
         id: mouseArea
@@ -62,24 +55,13 @@ Rectangle {
             radius: 6
             color: {
                 switch(status) {
-                    case "connected": return "#4caf50"  // Green
-                    case "connecting": return "#ff9800" // Orange
+                    case "connected": return AppTheme.palette.success
+                    case "connecting": return AppTheme.palette.warning
                     case "disconnected":
-                    default: return "#bdbdbd"           // Gray
+                    default: return AppTheme.text.disabled
                 }
             }
 
-            Behavior on color {
-                ColorAnimation { duration: 200 }
-            }
-
-            // Pulsing animation for connecting state
-            SequentialAnimation on opacity {
-                running: status === "connecting"
-                loops: Animation.Infinite
-                NumberAnimation { to: 0.3; duration: 600 }
-                NumberAnimation { to: 1.0; duration: 600 }
-            }
         }
 
         // Connection Info
@@ -93,16 +75,19 @@ Rectangle {
                 text: displayName
                 font.bold: true
                 font.pixelSize: 13
-                color: "#222"
+                color: AppTheme.text.primary
                 elide: Text.ElideRight
                 Layout.fillWidth: true
             }
 
             Label {
                 id: typeLabel
-                text: interfaceType
+                text: interfaceType + " · " + (
+                    status === "connected" ? qsTr("Connected")
+                    : status === "connecting" ? qsTr("Connecting…")
+                    : qsTr("Disconnected"))
                 font.pixelSize: 10
-                color: "#666"
+                color: AppTheme.text.secondary
                 visible: interfaceType !== ""
             }
         }
@@ -118,13 +103,13 @@ Rectangle {
                 text: {
                     switch(status) {
                         case "connected": return qsTr("Stop")
-                        case "connecting": return qsTr("...")
+                        case "connecting": return qsTr("Connecting…")
                         case "disconnected":
                         default: return qsTr("Start")
                     }
                 }
                 enabled: status !== "connecting"
-                Layout.preferredWidth: 60
+                Layout.preferredWidth: status === "connecting" ? 88 : 60
                 Layout.preferredHeight: 28
 
                 onClicked: {
@@ -138,26 +123,23 @@ Rectangle {
                 background: Rectangle {
                     radius: 4
                     color: {
-                        if (!actionButton.enabled) return "#e0e0e0"
-                        if (actionButton.pressed) return status === "connected" ? "#d32f2f" : "#1976d2"
-                        if (actionButton.hovered) return status === "connected" ? "#e53935" : "#2196f3"
-                        return status === "connected" ? "#f44336" : "#2196f3"
+                        if (!actionButton.enabled) return AppTheme.states.disabledBackground
+                        if (actionButton.pressed) return status === "connected" ? Qt.darker(AppTheme.palette.danger, 1.2) : AppTheme.palette.primaryPressed
+                        if (actionButton.hovered) return status === "connected" ? Qt.lighter(AppTheme.palette.danger, 1.1) : AppTheme.palette.primaryHover
+                        return status === "connected" ? AppTheme.palette.danger : AppTheme.palette.primary
                     }
                     border.color: {
-                        if (!actionButton.enabled) return "#bdbdbd"
-                        return status === "connected" ? "#c62828" : "#1565c0"
+                        if (!actionButton.enabled) return AppTheme.borders.disabled
+                        if (actionButton.activeFocus) return AppTheme.borders.focus
+                        return status === "connected" ? Qt.darker(AppTheme.palette.danger, 1.2) : AppTheme.palette.primaryBorder
                     }
-                    border.width: 1
-
-                    Behavior on color {
-                        ColorAnimation { duration: 100 }
-                    }
+                    border.width: actionButton.activeFocus ? 2 : 1
                 }
 
                 contentItem: Text {
                     text: actionButton.text
                     font: actionButton.font
-                    color: actionButton.enabled ? "white" : "#999"
+                    color: actionButton.enabled ? AppTheme.text.primary : AppTheme.text.disabled
                     horizontalAlignment: Text.AlignHCenter
                     verticalAlignment: Text.AlignVCenter
                 }
@@ -166,8 +148,8 @@ Rectangle {
             // Settings Button
             Button {
                 id: settingsButton
-                text: "⚙"
-                Layout.preferredWidth: 32
+                text: qsTr("Edit")
+                Layout.preferredWidth: 42
                 Layout.preferredHeight: 28
                 font.pixelSize: 14
 
@@ -178,14 +160,21 @@ Rectangle {
                 ToolTip.visible: hovered
                 ToolTip.text: qsTr("Settings")
                 ToolTip.delay: 500
+                background: Rectangle {
+                    radius: 4
+                    color: settingsButton.hovered ? AppTheme.surfaces.muted : "transparent"
+                    border.color: settingsButton.activeFocus ? AppTheme.borders.focus
+                        : settingsButton.hovered ? AppTheme.borders.primary : AppTheme.borders.subtle
+                    border.width: settingsButton.activeFocus ? 2 : 1
+                }
             }
 
             // Delete Button (only visible when disconnected)
             Button {
                 id: deleteButton
-                text: "🗑"
+                text: qsTr("Delete")
                 visible: status === "disconnected"
-                Layout.preferredWidth: 32
+                Layout.preferredWidth: 54
                 Layout.preferredHeight: 28
                 font.pixelSize: 14
 
@@ -200,16 +189,13 @@ Rectangle {
                 background: Rectangle {
                     radius: 4
                     color: {
-                        if (deleteButton.pressed) return "#c62828"
-                        if (deleteButton.hovered) return "#e53935"
+                        if (deleteButton.pressed) return Qt.darker(AppTheme.palette.danger, 1.2)
+                        if (deleteButton.hovered) return AppTheme.palette.danger
                         return "transparent"
                     }
-                    border.color: deleteButton.hovered ? "#c62828" : "#d0d0d0"
-                    border.width: 1
-
-                    Behavior on color {
-                        ColorAnimation { duration: 100 }
-                    }
+                    border.color: deleteButton.activeFocus ? AppTheme.borders.focus
+                        : deleteButton.hovered ? AppTheme.palette.danger : AppTheme.borders.primary
+                    border.width: deleteButton.activeFocus ? 2 : 1
                 }
             }
         }
@@ -240,7 +226,7 @@ Rectangle {
             Label {
                 text: displayName
                 font.bold: true
-                color: "#f44336"
+                color: AppTheme.palette.danger
                 Layout.fillWidth: true
             }
 

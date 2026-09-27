@@ -3,6 +3,7 @@ import QtQuick.Controls 6.4
 import QtQuick.Layouts 1.15
 import QtQuick.Window 2.15
 import Common 1.0
+import Theme 1.0
 
 /**
  * ChartsManager.qml (Tabbed)
@@ -14,6 +15,7 @@ import Common 1.0
  */
 Item {
     id: root
+    objectName: "chartsManager"
 
     // Compatibility signals (ChartWindow already listens to these)
     signal lineVisibilityToggled(string lineKey, bool visible)
@@ -33,6 +35,18 @@ Item {
     property var signalModel: null  // Global signal registry (uniqueId -> metadata)
     property var messageModel: null // Latest messages (uniqueId -> values/timing)
     property var availableCharts: [] // [{chartId, chartTitle, chartType}]
+
+    readonly property color panelBackground: AppTheme.surfaces.interfaceBackground
+    readonly property color cardBackground: AppTheme.surfaces.card
+    readonly property color dividerColor: AppTheme.borders.subtle
+    readonly property color borderColor: AppTheme.borders.primary
+    readonly property color textPrimary: AppTheme.text.primary
+    readonly property color textSecondary: AppTheme.text.secondary
+    readonly property color textMuted: AppTheme.text.placeholder
+    readonly property color accent: AppTheme.palette.primary
+    readonly property color accentHover: AppTheme.palette.primaryHover
+    readonly property color accentPressed: AppTheme.palette.primaryPressed
+    readonly property color accentBorder: AppTheme.palette.primaryBorder
 
     // Internal models
     ListModel { id: signalsModel }
@@ -65,8 +79,25 @@ Item {
         return !!(msg && msg.x !== null && msg.x !== undefined)
     }
 
+    function _canAssignSignal(chartType, uniqueId) {
+        if (chartType === "time_series") return true
+        if (chartType === "xy_line" || chartType === "xy_scatter") {
+            return _hasMessageX(uniqueId)
+        }
+        var msg = _getMessage(uniqueId)
+        if (chartType === "xyz_surface" || chartType === "xyz_scatter") {
+            return !!(msg && msg.x !== null && msg.x !== undefined &&
+                msg.z !== null && msg.z !== undefined)
+        }
+        return false
+    }
+
     function _generateChartId(chartType) {
         return "chart_" + chartType + "_" + Date.now() + "_" + Math.floor(Math.random() * 1000)
+    }
+
+    function openCreateChartDialog() {
+        createChartDialog.open()
     }
 
     function _collectAssignments(uniqueId) {
@@ -87,7 +118,7 @@ Item {
         var hasX = _hasMessageX(uniqueId)
         var chartType = hasX ? "xy_line" : "time_series"
         var chartId = _generateChartId(chartType)
-        var title = (displayName || uniqueId) + (hasX ? " (XY)" : " (Time Series)")
+        var title = (displayName || uniqueId) + (hasX ? " (Cartesian XY)" : " (Time series)")
 
         root.createChartRequested(chartType, title, chartId)
 
@@ -241,7 +272,7 @@ Item {
                     chartType: chartType || "",
                     valueField: null,
                     label: (c.chartTitle || chartId) + " (" + chartType + ")",
-                    enabled: root._isXYChart(chartType),
+                    enabled: root._canAssignSignal(chartType, uniqueId),
                     checked: root._isSignalAssignedToChart(uniqueId, chartId)
                 })
             }
@@ -278,8 +309,8 @@ Item {
 
     Rectangle {
         anchors.fill: parent
-        color: "#f8f8f8"
-        border.color: "#d0d0d0"
+        color: root.panelBackground
+        border.color: root.borderColor
         border.width: 1
         radius: 8
 
@@ -300,12 +331,12 @@ Item {
 
             background: Rectangle {
                 color: {
-                    if (collapseButton.pressed) return "#1565c0"
-                    if (collapseButton.hovered) return "#1976d2"
-                    return "#2196f3"
+                    if (collapseButton.pressed) return root.accentPressed
+                    if (collapseButton.hovered) return root.accentHover
+                    return root.accent
                 }
                 radius: 6
-                border.color: "#1565c0"
+                border.color: root.accentBorder
                 border.width: 1
             }
 
@@ -332,40 +363,40 @@ Item {
                 spacing: 8
 
                 Label {
-                    text: qsTr("Manage")
+                    text: qsTr("Workspace")
                     font.pixelSize: 14
                     font.bold: true
-                    color: "#444"
+                    color: root.textPrimary
                     Layout.fillWidth: true
                 }
 
                 Button {
                     id: detailViewButton
-                    text: "⚙"
-                    font.pixelSize: 18
+                    text: qsTr("Details")
+                    font.pixelSize: 12
                     font.bold: true
-                    width: 32
+                    width: 66
                     height: 32
 
                     ToolTip.visible: hovered
-                    ToolTip.text: qsTr("Open Detailed View")
+                    ToolTip.text: qsTr("Open workspace details in a separate window")
                     ToolTip.delay: 400
 
                     background: Rectangle {
                         color: {
-                            if (detailViewButton.pressed) return "#388e3c"
-                            if (detailViewButton.hovered) return "#43a047"
-                            return "#4caf50"
+                            if (detailViewButton.pressed) return root.accentPressed
+                            if (detailViewButton.hovered) return root.accentHover
+                            return root.accent
                         }
                         radius: 4
-                        border.color: "#388e3c"
+                        border.color: root.accentBorder
                         border.width: 1
                     }
 
                     contentItem: Text {
                         text: parent.text
                         font: parent.font
-                        color: "white"
+                        color: root.textPrimary
                         horizontalAlignment: Text.AlignHCenter
                         verticalAlignment: Text.AlignVCenter
                     }
@@ -387,12 +418,12 @@ Item {
 
                     background: Rectangle {
                         color: {
-                            if (headerCollapseButton.pressed) return "#1565c0"
-                            if (headerCollapseButton.hovered) return "#1976d2"
-                            return "#2196f3"
+                            if (headerCollapseButton.pressed) return root.accentPressed
+                            if (headerCollapseButton.hovered) return root.accentHover
+                            return root.accent
                         }
                         radius: 4
-                        border.color: "#1565c0"
+                        border.color: root.accentBorder
                         border.width: 1
                     }
 
@@ -408,24 +439,26 @@ Item {
                 }
             }
 
-            Rectangle { Layout.fillWidth: true; height: 1; color: "#d0d0d0" }
+            Rectangle { Layout.fillWidth: true; height: 1; color: root.dividerColor }
 
             TabBar {
                 id: tabBar
                 Layout.fillWidth: true
+                currentIndex: 3
 
                 background: Rectangle {
-                    color: "#e8e8e8"
+                    color: root.cardBackground
                     radius: 4
                 }
 
                 TabButton {
-                    text: qsTr("Charts")
+                    implicitWidth: 80
+                    text: qsTr("Lines")
 
                     background: Rectangle {
                         color: {
-                            if (parent.checked) return "#2196f3"
-                            if (parent.hovered) return "#d0d0d0"
+                            if (parent.checked) return root.accent
+                            if (parent.hovered) return root.dividerColor
                             return "transparent"
                         }
                         radius: 4
@@ -435,19 +468,20 @@ Item {
                         text: parent.text
                         font.pixelSize: 12
                         font.bold: parent.checked
-                        color: parent.checked ? "white" : "#444"
+                        color: parent.checked ? root.textPrimary : root.textSecondary
                         horizontalAlignment: Text.AlignHCenter
                         verticalAlignment: Text.AlignVCenter
                     }
                 }
 
                 TabButton {
+                    implicitWidth: 80
                     text: qsTr("Signals")
 
                     background: Rectangle {
                         color: {
-                            if (parent.checked) return "#2196f3"
-                            if (parent.hovered) return "#d0d0d0"
+                            if (parent.checked) return root.accent
+                            if (parent.hovered) return root.dividerColor
                             return "transparent"
                         }
                         radius: 4
@@ -457,19 +491,20 @@ Item {
                         text: parent.text
                         font.pixelSize: 12
                         font.bold: parent.checked
-                        color: parent.checked ? "white" : "#444"
+                        color: parent.checked ? root.textPrimary : root.textSecondary
                         horizontalAlignment: Text.AlignHCenter
                         verticalAlignment: Text.AlignVCenter
                     }
                 }
 
                 TabButton {
-                    text: qsTr("Messages")
+                    implicitWidth: 80
+                    text: qsTr("Data")
 
                     background: Rectangle {
                         color: {
-                            if (parent.checked) return "#2196f3"
-                            if (parent.hovered) return "#d0d0d0"
+                            if (parent.checked) return root.accent
+                            if (parent.hovered) return root.dividerColor
                             return "transparent"
                         }
                         radius: 4
@@ -479,19 +514,20 @@ Item {
                         text: parent.text
                         font.pixelSize: 12
                         font.bold: parent.checked
-                        color: parent.checked ? "white" : "#444"
+                        color: parent.checked ? root.textPrimary : root.textSecondary
                         horizontalAlignment: Text.AlignHCenter
                         verticalAlignment: Text.AlignVCenter
                     }
                 }
 
                 TabButton {
-                    text: qsTr("Manage Charts")
+                    implicitWidth: 80
+                    text: qsTr("Charts")
 
                     background: Rectangle {
                         color: {
-                            if (parent.checked) return "#2196f3"
-                            if (parent.hovered) return "#d0d0d0"
+                            if (parent.checked) return root.accent
+                            if (parent.hovered) return root.dividerColor
                             return "transparent"
                         }
                         radius: 4
@@ -501,7 +537,7 @@ Item {
                         text: parent.text
                         font.pixelSize: 12
                         font.bold: parent.checked
-                        color: parent.checked ? "white" : "#444"
+                        color: parent.checked ? root.textPrimary : root.textSecondary
                         horizontalAlignment: Text.AlignHCenter
                         verticalAlignment: Text.AlignVCenter
                     }
@@ -549,12 +585,12 @@ Item {
 
                                 background: Rectangle {
                                     color: {
-                                        if (parent.pressed) return "#1565c0"
-                                        if (parent.hovered) return "#1976d2"
-                                        return "#2196f3"
+                                        if (parent.pressed) return root.accentPressed
+                                        if (parent.hovered) return root.accentHover
+                                        return root.accent
                                     }
                                     radius: 4
-                                    border.color: "#1565c0"
+                                    border.color: root.accentBorder
                                     border.width: 1
                                 }
 
@@ -562,7 +598,7 @@ Item {
                                     text: parent.text
                                     font.pixelSize: 12
                                     font.bold: true
-                                    color: "white"
+                                    color: root.textPrimary
                                     horizontalAlignment: Text.AlignHCenter
                                     verticalAlignment: Text.AlignVCenter
                                 }
@@ -574,7 +610,7 @@ Item {
 
                             Label {
                                 text: qsTr("%1 signals").arg(signalsModel.count)
-                                color: "#666"
+                                color: root.textMuted
                                 font.pixelSize: 11
                             }
                         }
@@ -586,6 +622,8 @@ Item {
                             clip: true
                             spacing: 4
                             model: signalsModel
+                            reuseItems: true
+                            cacheBuffer: 200
 
                             ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
 
@@ -593,8 +631,8 @@ Item {
                                 width: signalsList.width
                                 height: 52
                                 radius: 6
-                                color: "#ffffff"
-                                border.color: "#d0d0d0"
+                                color: root.cardBackground
+                                border.color: root.borderColor
                                 border.width: 1
 
                                 RowLayout {
@@ -608,7 +646,7 @@ Item {
                                         height: 20
                                         radius: 10
                                         color: model.color
-                                        border.color: "#ffffff"
+                                        border.color: root.borderColor
                                         border.width: 1
                                         Layout.alignment: Qt.AlignVCenter
                                     }
@@ -619,7 +657,7 @@ Item {
 
                                         Label {
                                             text: model.displayName
-                                            color: "#222"
+                                            color: root.textPrimary
                                             font.pixelSize: 12
                                             font.bold: true
                                             elide: Text.ElideRight
@@ -628,7 +666,7 @@ Item {
 
                                         Label {
                                             text: model.uniqueId + " · " + model.interfaceType + " · ID:" + model.dataId + " · Charts:" + (model.charts ? model.charts.length : 0)
-                                            color: "#777"
+                                            color: root.textSecondary
                                             font.pixelSize: 10
                                             elide: Text.ElideRight
                                             Layout.fillWidth: true
@@ -641,19 +679,19 @@ Item {
 
                                         background: Rectangle {
                                             color: {
-                                                if (parent.pressed) return "#e0e0e0"
-                                                if (parent.hovered) return "#eeeeee"
-                                                return "#f5f5f5"
+                                                if (parent.pressed) return AppTheme.surfaces.muted
+                                                if (parent.hovered) return AppTheme.surfaces.card
+                                                return AppTheme.surfaces.muted
                                             }
                                             radius: 4
-                                            border.color: "#d0d0d0"
+                                            border.color: root.dividerColor
                                             border.width: 1
                                         }
 
                                         contentItem: Text {
                                             text: parent.text
                                             font.pixelSize: 11
-                                            color: "#444"
+                                            color: root.textSecondary
                                             horizontalAlignment: Text.AlignHCenter
                                             verticalAlignment: Text.AlignVCenter
                                         }
@@ -668,19 +706,19 @@ Item {
 
                                         background: Rectangle {
                                             color: {
-                                                if (parent.pressed) return "#e0e0e0"
-                                                if (parent.hovered) return "#eeeeee"
-                                                return "#f5f5f5"
+                                                if (parent.pressed) return AppTheme.surfaces.muted
+                                                if (parent.hovered) return AppTheme.surfaces.card
+                                                return AppTheme.surfaces.muted
                                             }
                                             radius: 4
-                                            border.color: "#d0d0d0"
+                                            border.color: root.dividerColor
                                             border.width: 1
                                         }
 
                                         contentItem: Text {
                                             text: parent.text
                                             font.pixelSize: 11
-                                            color: "#444"
+                                            color: root.textSecondary
                                             horizontalAlignment: Text.AlignHCenter
                                             verticalAlignment: Text.AlignVCenter
                                         }
@@ -694,19 +732,19 @@ Item {
 
                                         background: Rectangle {
                                             color: {
-                                                if (parent.pressed) return "#ffb0b0"
-                                                if (parent.hovered) return "#ffd6d6"
-                                                return "#ffecec"
+                                                if (parent.pressed) return Qt.darker(AppTheme.palette.danger, 1.2)
+                                                if (parent.hovered) return AppTheme.palette.danger
+                                                return Qt.lighter(AppTheme.palette.danger, 1.35)
                                             }
                                             radius: 4
-                                            border.color: "#ffaaaa"
+                                            border.color: Qt.darker(AppTheme.palette.danger, 1.1)
                                             border.width: 1
                                         }
 
                                         contentItem: Text {
                                             text: parent.text
                                             font.pixelSize: 11
-                                            color: "#c62828"
+                                            color: AppTheme.text.primary
                                             horizontalAlignment: Text.AlignHCenter
                                             verticalAlignment: Text.AlignVCenter
                                         }
@@ -719,7 +757,7 @@ Item {
                             Label {
                                 anchors.centerIn: parent
                                 text: qsTr("No signals")
-                                color: "#999"
+                                color: root.textMuted
                                 font.pixelSize: 12
                                 visible: signalsList.count === 0
                             }
@@ -745,9 +783,9 @@ Item {
                                 enabled: root.messageModel && root.messageModel.count > 0
 
                                 background: Rectangle {
-                                    color: parent.enabled ? (parent.hovered ? "#eeeeee" : "#f5f5f5") : "#f0f0f0"
+                                    color: parent.enabled ? (parent.hovered ? AppTheme.surfaces.card : AppTheme.surfaces.muted) : AppTheme.states.disabledBackground
                                     radius: 4
-                                    border.color: "#d0d0d0"
+                                    border.color: root.dividerColor
                                     border.width: 1
                                 }
 
@@ -755,7 +793,7 @@ Item {
                                     text: parent.text
                                     font.pixelSize: 12
                                     font.bold: true
-                                    color: parent.enabled ? "#444" : "#888"
+                                    color: parent.enabled ? root.textSecondary : root.textMuted
                                     horizontalAlignment: Text.AlignHCenter
                                     verticalAlignment: Text.AlignVCenter
                                 }
@@ -771,7 +809,7 @@ Item {
 
                             Label {
                                 text: qsTr("%1 messages").arg(root.messageModel ? root.messageModel.count : 0)
-                                color: "#666"
+                                color: root.textMuted
                                 font.pixelSize: 11
                             }
                         }
@@ -783,6 +821,8 @@ Item {
                             clip: true
                             spacing: 6
                             model: root.messageModel ? root.messageModel : []
+                            reuseItems: true
+                            cacheBuffer: 240
 
                             ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
 
@@ -790,8 +830,8 @@ Item {
                                 id: messageCard
                                 width: messagesList.width
                                 radius: 8
-                                color: "#ffffff"
-                                border.color: "#d0d0d0"
+                                color: root.cardBackground
+                                border.color: root.borderColor
                                 border.width: 1
 
                                 implicitHeight: contentColumn.implicitHeight + 16
@@ -809,7 +849,7 @@ Item {
 
                                         Text {
                                             text: model.expanded ? "▼" : "▶"
-                                            color: "#666"
+                                            color: root.textSecondary
                                             font.pixelSize: 12
                                             Layout.alignment: Qt.AlignVCenter
                                         }
@@ -820,7 +860,7 @@ Item {
 
                                             Label {
                                                 text: model.displayName || model.uniqueId
-                                                color: "#222"
+                                                color: root.textPrimary
                                                 font.pixelSize: 12
                                                 font.bold: true
                                                 elide: Text.ElideRight
@@ -829,7 +869,7 @@ Item {
 
                                             Label {
                                                 text: (model.interfaceType || "Unknown") + " · " + model.uniqueId + " · ID:" + model.dataId + " · Count:" + (model.rxCount || 0)
-                                                color: "#777"
+                                                color: root.textSecondary
                                                 font.pixelSize: 10
                                                 elide: Text.ElideRight
                                                 Layout.fillWidth: true
@@ -842,7 +882,7 @@ Item {
 
                                             Label {
                                                 text: model.cycleTime !== null && model.cycleTime !== undefined ? (Math.round(model.cycleTime * 1000) + " ms") : "—"
-                                                color: "#444"
+                                                color: root.textSecondary
                                                 font.pixelSize: 11
                                                 horizontalAlignment: Text.AlignRight
                                                 Layout.alignment: Qt.AlignRight
@@ -850,7 +890,7 @@ Item {
 
                                             Label {
                                                 text: model.rxTime ? Qt.formatDateTime(new Date(model.rxTime * 1000), "hh:mm:ss.zzz") : "—"
-                                                color: "#777"
+                                                color: root.textMuted
                                                 font.pixelSize: 10
                                                 horizontalAlignment: Text.AlignRight
                                                 Layout.alignment: Qt.AlignRight
@@ -867,9 +907,9 @@ Item {
                                             Layout.preferredHeight: 26
 
                                             background: Rectangle {
-                                                color: parent.hovered ? "#e3f2fd" : "#f5f5f5"
+                                                color: parent.hovered ? AppTheme.surfaces.card : AppTheme.surfaces.muted
                                                 radius: 4
-                                                border.color: "#cfd8dc"
+                                                border.color: root.dividerColor
                                                 border.width: 1
                                             }
 
@@ -877,7 +917,7 @@ Item {
                                                 text: parent.text
                                                 font.pixelSize: 11
                                                 font.bold: true
-                                                color: "#1565c0"
+                                                color: root.accent
                                                 horizontalAlignment: Text.AlignHCenter
                                                 verticalAlignment: Text.AlignVCenter
                                             }
@@ -890,9 +930,9 @@ Item {
                                             Layout.preferredHeight: 26
 
                                             background: Rectangle {
-                                                color: parent.hovered ? "#eeeeee" : "#f5f5f5"
+                                                color: parent.hovered ? AppTheme.surfaces.card : AppTheme.surfaces.muted
                                                 radius: 4
-                                                border.color: "#d0d0d0"
+                                                border.color: root.dividerColor
                                                 border.width: 1
                                             }
 
@@ -900,7 +940,7 @@ Item {
                                                 text: parent.text
                                                 font.pixelSize: 11
                                                 font.bold: true
-                                                color: "#444"
+                                                color: root.textSecondary
                                                 horizontalAlignment: Text.AlignHCenter
                                                 verticalAlignment: Text.AlignVCenter
                                             }
@@ -914,9 +954,9 @@ Item {
                                             visible: root._hasMessageX(model.uniqueId)
 
                                             background: Rectangle {
-                                                color: parent.hovered ? "#fff3e0" : "#fff8e1"
+                                                color: parent.hovered ? Qt.lighter(AppTheme.palette.warning, 1.3) : Qt.lighter(AppTheme.palette.warning, 1.5)
                                                 radius: 4
-                                                border.color: "#ffe0b2"
+                                                border.color: AppTheme.palette.warning
                                                 border.width: 1
                                             }
 
@@ -924,7 +964,7 @@ Item {
                                                 text: parent.text
                                                 font.pixelSize: 11
                                                 font.bold: true
-                                                color: "#ef6c00"
+                                                color: AppTheme.palette.warning
                                                 horizontalAlignment: Text.AlignHCenter
                                                 verticalAlignment: Text.AlignVCenter
                                             }
@@ -938,7 +978,7 @@ Item {
                                     Rectangle {
                                         Layout.fillWidth: true
                                         height: 1
-                                        color: "#eeeeee"
+                                        color: root.dividerColor
                                         visible: model.expanded
                                     }
 
@@ -952,10 +992,10 @@ Item {
                                             Layout.fillWidth: true
                                             spacing: 8
 
-                                            Label { text: qsTr("Signal"); font.pixelSize: 10; color: "#666"; Layout.preferredWidth: 90 }
-                                            Label { text: qsTr("Value"); font.pixelSize: 10; color: "#666"; Layout.fillWidth: true }
-                                            Label { text: qsTr("Cycle"); font.pixelSize: 10; color: "#666"; Layout.preferredWidth: 80; horizontalAlignment: Text.AlignRight }
-                                            Label { text: qsTr("Updated"); font.pixelSize: 10; color: "#666"; Layout.preferredWidth: 100; horizontalAlignment: Text.AlignRight }
+                                            Label { text: qsTr("Signal"); font.pixelSize: 10; color: root.textMuted; Layout.preferredWidth: 90 }
+                                            Label { text: qsTr("Value"); font.pixelSize: 10; color: root.textMuted; Layout.fillWidth: true }
+                                            Label { text: qsTr("Cycle"); font.pixelSize: 10; color: root.textMuted; Layout.preferredWidth: 80; horizontalAlignment: Text.AlignRight }
+                                            Label { text: qsTr("Updated"); font.pixelSize: 10; color: root.textMuted; Layout.preferredWidth: 100; horizontalAlignment: Text.AlignRight }
                                         }
 
                                         Repeater {
@@ -973,7 +1013,7 @@ Item {
                                                 Label {
                                                     text: modelData.name
                                                     font.pixelSize: 12
-                                                    color: "#222"
+                                                    color: root.textPrimary
                                                     Layout.preferredWidth: 90
                                                 }
 
@@ -989,7 +1029,7 @@ Item {
                                                         return Number(modelData.value).toFixed(6)
                                                     }
                                                     font.pixelSize: 12
-                                                    color: "#444"
+                                                    color: root.textSecondary
                                                     elide: Text.ElideRight
                                                     Layout.fillWidth: true
                                                 }
@@ -997,7 +1037,7 @@ Item {
                                                 Label {
                                                     text: messageCard.msg.cycleTime !== null && messageCard.msg.cycleTime !== undefined ? (Math.round(messageCard.msg.cycleTime * 1000) + " ms") : "—"
                                                     font.pixelSize: 12
-                                                    color: "#444"
+                                                    color: root.textSecondary
                                                     horizontalAlignment: Text.AlignRight
                                                     Layout.preferredWidth: 80
                                                 }
@@ -1005,7 +1045,7 @@ Item {
                                                 Label {
                                                     text: messageCard.msg.rxTime ? Qt.formatDateTime(new Date(messageCard.msg.rxTime * 1000), "hh:mm:ss") : "—"
                                                     font.pixelSize: 12
-                                                    color: "#444"
+                                                    color: root.textSecondary
                                                     horizontalAlignment: Text.AlignRight
                                                     Layout.preferredWidth: 100
                                                 }
@@ -1026,7 +1066,7 @@ Item {
                             Label {
                                 anchors.centerIn: parent
                                 text: qsTr("No messages")
-                                color: "#999"
+                                color: root.textMuted
                                 font.pixelSize: 12
                                 visible: messagesList.count === 0
                             }
@@ -1047,17 +1087,17 @@ Item {
                             spacing: 8
 
                             Button {
-                                text: qsTr("Add Chart")
+                                text: qsTr("Create chart")
                                 Layout.preferredHeight: 32
 
                                 background: Rectangle {
                                     color: {
-                                        if (parent.pressed) return "#1565c0"
-                                        if (parent.hovered) return "#1976d2"
-                                        return "#2196f3"
+                                        if (parent.pressed) return root.accentPressed
+                                        if (parent.hovered) return root.accentHover
+                                        return root.accent
                                     }
                                     radius: 4
-                                    border.color: "#1565c0"
+                                    border.color: root.accentBorder
                                     border.width: 1
                                 }
 
@@ -1065,7 +1105,7 @@ Item {
                                     text: parent.text
                                     font.pixelSize: 12
                                     font.bold: true
-                                    color: "white"
+                                    color: root.textPrimary
                                     horizontalAlignment: Text.AlignHCenter
                                     verticalAlignment: Text.AlignVCenter
                                 }
@@ -1077,7 +1117,7 @@ Item {
 
                             Label {
                                 text: qsTr("%1 charts").arg(chartsModel.count)
-                                color: "#666"
+                                color: root.textMuted
                                 font.pixelSize: 11
                             }
                         }
@@ -1089,6 +1129,8 @@ Item {
                             clip: true
                             spacing: 4
                             model: chartsModel
+                            reuseItems: true
+                            cacheBuffer: 200
 
                             ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
 
@@ -1096,8 +1138,8 @@ Item {
                                 width: chartsList.width
                                 height: 54
                                 radius: 6
-                                color: "#ffffff"
-                                border.color: "#d0d0d0"
+                                color: root.cardBackground
+                                border.color: root.borderColor
                                 border.width: 1
 
                                 RowLayout {
@@ -1112,7 +1154,7 @@ Item {
 
                                         Label {
                                             text: model.chartTitle || model.chartId
-                                            color: "#222"
+                                            color: root.textPrimary
                                             font.pixelSize: 12
                                             font.bold: true
                                             elide: Text.ElideRight
@@ -1121,7 +1163,7 @@ Item {
 
                                         Label {
                                             text: (model.chartType || "") + " · " + model.chartId + " · Lines:" + root._countLinesForChart(model.chartId)
-                                            color: "#777"
+                                            color: root.textSecondary
                                             font.pixelSize: 10
                                             elide: Text.ElideRight
                                             Layout.fillWidth: true
@@ -1134,19 +1176,19 @@ Item {
 
                                         background: Rectangle {
                                             color: {
-                                                if (parent.pressed) return "#e0e0e0"
-                                                if (parent.hovered) return "#eeeeee"
-                                                return "#f5f5f5"
+                                                if (parent.pressed) return AppTheme.surfaces.muted
+                                                if (parent.hovered) return AppTheme.surfaces.card
+                                                return AppTheme.surfaces.muted
                                             }
                                             radius: 4
-                                            border.color: "#d0d0d0"
+                                            border.color: root.dividerColor
                                             border.width: 1
                                         }
 
                                         contentItem: Text {
                                             text: parent.text
                                             font.pixelSize: 11
-                                            color: "#444"
+                                            color: root.textSecondary
                                             horizontalAlignment: Text.AlignHCenter
                                             verticalAlignment: Text.AlignVCenter
                                         }
@@ -1165,20 +1207,20 @@ Item {
 
                                         background: Rectangle {
                                             color: {
-                                                if (!parent.enabled) return "#f0f0f0"
-                                                if (parent.pressed) return "#ffb0b0"
-                                                if (parent.hovered) return "#ffd6d6"
-                                                return "#ffecec"
+                                                if (!parent.enabled) return AppTheme.states.disabledBackground
+                                                if (parent.pressed) return Qt.darker(AppTheme.palette.danger, 1.2)
+                                                if (parent.hovered) return AppTheme.palette.danger
+                                                return Qt.lighter(AppTheme.palette.danger, 1.35)
                                             }
                                             radius: 4
-                                            border.color: parent.enabled ? "#ffaaaa" : "#e0e0e0"
+                                            border.color: parent.enabled ? Qt.darker(AppTheme.palette.danger, 1.1) : root.dividerColor
                                             border.width: 1
                                         }
 
                                         contentItem: Text {
                                             text: parent.text
                                             font.pixelSize: 11
-                                            color: parent.enabled ? "#c62828" : "#999"
+                                            color: parent.enabled ? root.textPrimary : root.textMuted
                                             horizontalAlignment: Text.AlignHCenter
                                             verticalAlignment: Text.AlignVCenter
                                         }
@@ -1191,7 +1233,7 @@ Item {
                             Label {
                                 anchors.centerIn: parent
                                 text: qsTr("No charts")
-                                color: "#999"
+                                color: root.textMuted
                                 font.pixelSize: 12
                                 visible: chartsList.count === 0
                             }
@@ -1281,8 +1323,8 @@ Item {
 
                     Label {
                         text: root._hasMessageX(assignDialog.uniqueId)
-                            ? qsTr("Recommended: XY Chart")
-                            : qsTr("Recommended: Time Series")
+                            ? qsTr("Suggested: Cartesian XY (protocol X → Y)")
+                            : qsTr("Suggested: Time series (time → value)")
                         font.pixelSize: 12
                         color: "#cccccc"
                         Layout.fillWidth: true
@@ -1430,17 +1472,17 @@ Item {
     // ---------------------------------------------------------
     Dialog {
         id: createChartDialog
-        title: qsTr("Add Chart")
+        title: qsTr("Create chart")
         modal: true
         standardButtons: Dialog.NoButton
         parent: Overlay.overlay
         anchors.centerIn: parent
 
         property string titleText: ""
-        property string chartType: "xy_line"
+        property string chartType: "time_series"
 
-        readonly property int _maxWidth: 460
-        readonly property int _maxHeight: 300
+        readonly property int _maxWidth: 520
+        readonly property int _maxHeight: 470
         readonly property int _minWidth: 300
         readonly property int _margin: 24
         readonly property int _availableWidth: Math.max(0, (parent ? parent.width : _maxWidth) - (_margin * 2))
@@ -1477,8 +1519,8 @@ Item {
         }
 
         contentItem: Item {
-            implicitWidth: 420
-            implicitHeight: 160
+            implicitWidth: 480
+            implicitHeight: 330
 
             ColumnLayout {
                 anchors.fill: parent
@@ -1490,7 +1532,7 @@ Item {
                     spacing: 8
 
                     Label {
-                        text: qsTr("Chart Title") + " *"
+                        text: qsTr("Chart title") + " *"
                         font.pixelSize: 13
                         font.bold: true
                         color: "#ffffff"
@@ -1499,7 +1541,7 @@ Item {
                     TextField {
                         id: newChartTitle
                         Layout.fillWidth: true
-                        placeholderText: qsTr("e.g., Temperature Chart")
+                        placeholderText: qsTr("e.g. Motor temperature")
                         text: ""
 
                         background: Rectangle {
@@ -1510,6 +1552,7 @@ Item {
                         }
 
                         color: "#ffffff"
+                        placeholderTextColor: root.textMuted
                         font.pixelSize: 13
                     }
                 }
@@ -1519,58 +1562,82 @@ Item {
                     spacing: 8
 
                     Label {
-                        text: qsTr("Chart Type") + " *"
+                        text: qsTr("Display mode") + " *"
                         font.pixelSize: 13
                         font.bold: true
                         color: "#ffffff"
                     }
 
-                    ComboBox {
-                        id: chartTypeCombo
+                    ButtonGroup { id: chartTypeGroup }
+
+                    RadioButton {
+                        id: timeSeriesMode
                         Layout.fillWidth: true
-                        model: [
-                            {"text":"XY Line", "value":"xy_line"},
-                            {"text":"XY Scatter", "value":"xy_scatter"},
-                            {"text":"Time Series", "value":"time_series"},
-                            {"text":"XYZ Scatter", "value":"xyz_scatter"}
-                        ]
-                        textRole: "text"
-
-                        background: Rectangle {
-                            color: "#3d3d3d"
-                            border.color: chartTypeCombo.activeFocus ? "#007AFF" : "#606060"
-                            border.width: 1
-                            radius: 4
-                        }
-
+                        text: qsTr("Time series  —  time vs measured value")
+                        checked: true
+                        ButtonGroup.group: chartTypeGroup
+                        onToggled: if (checked) createChartDialog.chartType = "time_series"
                         contentItem: Text {
-                            text: chartTypeCombo.displayText
-                            font: chartTypeCombo.font
-                            color: "#ffffff"
+                            text: parent.text
+                            color: root.textPrimary
+                            font.pixelSize: 13
+                            leftPadding: parent.indicator.width + parent.spacing
                             verticalAlignment: Text.AlignVCenter
-                            leftPadding: 10
                         }
+                    }
 
-                        delegate: ItemDelegate {
-                            width: chartTypeCombo.width
-
-                            contentItem: Text {
-                                text: modelData ? modelData.text : ""
-                                color: "#ffffff"
-                                font: chartTypeCombo.font
-                                elide: Text.ElideRight
-                                verticalAlignment: Text.AlignVCenter
-                            }
-
-                            background: Rectangle {
-                                color: parent.hovered ? "#4d4d4d" : "#3d3d3d"
-                            }
+                    RadioButton {
+                        Layout.fillWidth: true
+                        text: qsTr("Cartesian XY line  —  protocol X vs protocol Y")
+                        ButtonGroup.group: chartTypeGroup
+                        onToggled: if (checked) createChartDialog.chartType = "xy_line"
+                        contentItem: Text {
+                            text: parent.text
+                            color: root.textPrimary
+                            font.pixelSize: 13
+                            leftPadding: parent.indicator.width + parent.spacing
+                            verticalAlignment: Text.AlignVCenter
                         }
+                    }
 
-                        onCurrentIndexChanged: {
-                            var item = model[currentIndex]
-                            createChartDialog.chartType = item ? item.value : "xy_line"
+                    RadioButton {
+                        Layout.fillWidth: true
+                        text: qsTr("Cartesian XY points  —  protocol X vs protocol Y")
+                        ButtonGroup.group: chartTypeGroup
+                        onToggled: if (checked) createChartDialog.chartType = "xy_scatter"
+                        contentItem: Text {
+                            text: parent.text
+                            color: root.textPrimary
+                            font.pixelSize: 13
+                            leftPadding: parent.indicator.width + parent.spacing
+                            verticalAlignment: Text.AlignVCenter
                         }
+                    }
+
+                    RadioButton {
+                        Layout.fillWidth: true
+                        text: qsTr("3D points  —  protocol X, Y and Z")
+                        ButtonGroup.group: chartTypeGroup
+                        onToggled: if (checked) createChartDialog.chartType = "xyz_scatter"
+                        contentItem: Text {
+                            text: parent.text
+                            color: root.textPrimary
+                            font.pixelSize: 13
+                            leftPadding: parent.indicator.width + parent.spacing
+                            verticalAlignment: Text.AlignVCenter
+                        }
+                    }
+
+                    Label {
+                        Layout.fillWidth: true
+                        text: createChartDialog.chartType === "time_series"
+                            ? qsTr("The X axis uses elapsed time. Choose X or Y as the measured value when assigning a signal.")
+                            : createChartDialog.chartType === "xyz_scatter"
+                                ? qsTr("Uses the transmitted X, Y and Z coordinates.")
+                                : qsTr("The X axis uses transmitted X; the Y axis uses transmitted Y. Time is not used for either axis.")
+                        color: root.textSecondary
+                        font.pixelSize: 12
+                        wrapMode: Text.WordWrap
                     }
                 }
             }
@@ -1611,8 +1678,8 @@ Item {
                 }
 
                 Button {
-                    text: qsTr("Add Chart")
-                    Layout.preferredWidth: 100
+                    text: qsTr("Create chart")
+                    Layout.preferredWidth: 120
                     enabled: newChartTitle.text.length > 0
 
                     background: Rectangle {
@@ -1637,11 +1704,13 @@ Item {
         onAccepted: {
             var title = newChartTitle.text && newChartTitle.text.length > 0 ? newChartTitle.text : ("Chart " + Date.now())
             root.createChartRequested(createChartDialog.chartType, title, "")
+            tabBar.currentIndex = 1
         }
 
         onAboutToShow: {
             newChartTitle.text = ""
-            chartTypeCombo.currentIndex = 0
+            timeSeriesMode.checked = true
+            newChartTitle.forceActiveFocus()
         }
     }
 

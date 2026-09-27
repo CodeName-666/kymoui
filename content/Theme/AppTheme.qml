@@ -7,56 +7,56 @@ QtObject {
 
     // Color palette
     readonly property QtObject palette: QtObject {
-        readonly property color primary: "#2196f3"
-        readonly property color primaryHover: "#1976d2"
-        readonly property color primaryPressed: "#1565c0"
-        readonly property color primaryBorder: "#1565c0"
-        readonly property color accent: "#03dac5"
-        readonly property color danger: "#d32f2f"
-        readonly property color success: "#388e3c"
-        readonly property color warning: "#ffa000"
+        readonly property color primary: "#3fb7ff"
+        readonly property color primaryHover: "#2fa4e6"
+        readonly property color primaryPressed: "#238dc9"
+        readonly property color primaryBorder: "#1f86c5"
+        readonly property color accent: "#2dd4b0"
+        readonly property color danger: "#ff6b6b"
+        readonly property color success: "#40c057"
+        readonly property color warning: "#f3c14b"
     }
 
     readonly property QtObject surfaces: QtObject {
-        readonly property color background: "#f5f5f5"
-        readonly property color interfaceBackground: "#fafafa"
-        readonly property color card: "#ffffff"
-        readonly property color muted: "#f0f0f0"
+        readonly property color background: "#0f131a"
+        readonly property color interfaceBackground: "#141a24"
+        readonly property color card: "#1b2430"
+        readonly property color muted: "#10151d"
     }
 
     readonly property QtObject borders: QtObject {
-        readonly property color primary: "#c5c5c5"
-        readonly property color subtle: "#e0e0e0"
+        readonly property color primary: "#273142"
+        readonly property color subtle: "#1f2836"
         readonly property color focus: palette.primary
         readonly property color danger: palette.danger
-        readonly property color disabled: "#bdbdbd"
+        readonly property color disabled: "#3b4657"
     }
 
     readonly property QtObject text: QtObject {
-        readonly property color primary: "#333333"
-        readonly property color secondary: "#5c5c5c"
-        readonly property color label: "#444444"
-        readonly property color contrast: "#ffffff"
-        readonly property color disabled: "#777777"
-        readonly property color placeholder: "#888888"
+        readonly property color primary: "#eef3fb"
+        readonly property color secondary: "#a4afc3"
+        readonly property color label: "#d2daea"
+        readonly property color contrast: "#0c1118"
+        readonly property color disabled: "#7b879c"
+        readonly property color placeholder: "#8e9bb1"
     }
 
     readonly property QtObject states: QtObject {
-        readonly property color disabledBackground: "#dcdcdc"
+        readonly property color disabledBackground: "#2a3443"
     }
 
     readonly property QtObject inputs: QtObject {
         readonly property color background: surfaces.card
-        readonly property color disabledBackground: surfaces.interfaceBackground
+        readonly property color disabledBackground: "#1a2230"
     }
 
     readonly property QtObject buttons: QtObject {
         readonly property QtObject neutral: QtObject {
-            readonly property color background: "#4d4d4d"
-            readonly property color hover: "#666666"
-            readonly property color pressed: "#555555"
-            readonly property color border: "#606060"
-            readonly property color text: "#ffffff"
+            readonly property color background: "#2a3443"
+            readonly property color hover: "#313d50"
+            readonly property color pressed: "#273246"
+            readonly property color border: "#334255"
+            readonly property color text: "#eef3fb"
         }
     }
 
