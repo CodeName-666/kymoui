@@ -8,9 +8,9 @@ set_source_files_properties(Constants.qml
 
 
 
-qt_add_library(PlotterUi STATIC)
-qt6_add_qml_module(PlotterUi
-    URI "PlotterUi"
+qt_add_library(KymoUi STATIC)
+qt6_add_qml_module(KymoUi
+    URI "KymoUi"
     VERSION 1.0
     QML_FILES
         EventListSimulator.qml

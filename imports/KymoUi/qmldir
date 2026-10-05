@@ -1,4 +1,4 @@
-Module PlotterUi
+Module KymoUi
 singleton Constants 1.0 ../Common/Constants.qml
 DirectoryFontLoader 1.0 DirectoryFontLoader.qml
 App 1.0 App.js
