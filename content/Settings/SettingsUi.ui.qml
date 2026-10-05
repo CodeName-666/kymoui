@@ -1,130 +1,199 @@
 import QtQuick 6.4
-import QtQuick.Layouts 1.11
+import QtQuick.Layouts 1.15
 import QtQuick.Controls 6.4
+import QtCore 6.7 as Core
+import SettingsCommon 1.0
+import "../Theme"
+import "../components"
 
-import "SerialSettings"
-import "TelnetSettings"
-import "TestSettings"
-
-
-Item {
+Rectangle {
     id: settings_menu
+    implicitWidth: 500
+    implicitHeight: 300
+    radius: SettingsTheme.radius.extraLarge
+    color: SettingsTheme.settingsBackground
+    border.color: SettingsTheme.borderColor
+    border.width: 1
 
-    implicitWidth: 400
-    implicitHeight: 400
+    property alias closeButton: closeButton
+    property alias saveConfigButton: saveConfigButton
+    property alias loadConfigButton: loadConfigButton
+    property alias titleText: titleText
+    property var availableControlStyles: ["Fusion", "Basic", "Material", "Universal"]
+    property int selectedStyleIndex: 0
 
-    property alias interfaceComboBox: interfaceComboBox
-    property alias telnetSettings: telnetSettings
-    property alias serialSettings: serialSettings
-    property alias okButton: okButton
-    property alias cancleButton: cancleButton
-    property alias testSettings: testSettings
-
-    Text {
-        text: qsTr("Settings:")
-        anchors.left: parent.left
-        anchors.top: parent.top
-        font.bold: true
-        font.pointSize: 13
-        anchors.leftMargin: 10
-        anchors.topMargin: 10
+    Core.Settings {
+        id: uiSettingsStore
+        category: "ui"
+        property string controlsStyle: "Fusion"
     }
 
-    Text {
-        id: text1
-        text: qsTr("Connection Type:")
-        anchors.left: parent.left
-        anchors.right: interfaceComboBox.left
-        anchors.top: interfaceComboBox.top
-        anchors.bottom: interfaceComboBox.bottom
-        font.pixelSize: 12
-        horizontalAlignment: Text.AlignLeft
-        verticalAlignment: Text.AlignVCenter
-        anchors.leftMargin: 10
-        anchors.topMargin: 0
-        anchors.bottomMargin: 0
-        anchors.rightMargin: 6
+    function syncControlsStyleSelection() {
+        var idx = availableControlStyles.indexOf(uiSettingsStore.controlsStyle)
+        selectedStyleIndex = idx >= 0 ? idx : 0
     }
 
-    ComboBox {
-        id: interfaceComboBox
-        width: 143
-        height: 23
-        //        textRole: "name"
-        //        valueRole: "val"
-        anchors.right: parent.right
-        anchors.top: parent.top
-        anchors.rightMargin: 44
-        anchors.topMargin: 40
-        //model: ["Serial", "Telnet", "Test"]
+    Component.onCompleted: syncControlsStyleSelection()
+
+    Connections {
+        target: uiSettingsStore
+        function onControlsStyleChanged() {
+            settings_menu.syncControlsStyleSelection()
+        }
     }
 
-    SerialSettings {
-        id: serialSettings
-        anchors.left: parent.left
-        anchors.right: parent.right
-        anchors.top: interfaceComboBox.bottom
-        anchors.bottom: okButton.top
-        anchors.rightMargin: 5
-        anchors.leftMargin: 5
-        anchors.bottomMargin: 10
-        anchors.topMargin: 10
-        visible: true
-    }
+    ColumnLayout {
+        anchors.fill: parent
+        anchors.topMargin: SettingsTheme.margins.large
+        anchors.leftMargin: SettingsTheme.margins.large
+        anchors.rightMargin: SettingsTheme.margins.large
+        anchors.bottomMargin: SettingsTheme.margins.large
+        spacing: SettingsTheme.spacing.large
 
-    TelnetSettings {
-        id: telnetSettings
-        anchors.left: parent.left
-        anchors.right: parent.right
-        anchors.top: interfaceComboBox.bottom
-        anchors.bottom: okButton.top
-        anchors.rightMargin: 5
-        anchors.leftMargin: 5
-        anchors.bottomMargin: 10
-        anchors.topMargin: 10
-        visible: false
-    }
+        // Header
+        Text {
+            id: titleText
+            text: qsTr("Configuration Settings")
+            font.bold: true
+            font.pixelSize: SettingsTheme.fontSize.title
+            color: SettingsTheme.textPrimary
+            Layout.fillWidth: true
+            horizontalAlignment: Text.AlignHCenter
+        }
 
-    TestSettings {
-        id: testSettings
-        anchors.left: parent.left
-        anchors.right: parent.right
-        anchors.top: interfaceComboBox.bottom
-        anchors.bottom: okButton.top
-        anchors.rightMargin: 5
-        anchors.leftMargin: 5
-        anchors.bottomMargin: 10
-        anchors.topMargin: 10
-        visible: false
-    }
+        // Info text
+        Rectangle {
+            Layout.fillWidth: true
+            Layout.preferredHeight: 80
+            radius: SettingsTheme.radius.medium
+            color: SettingsTheme.cardBackground
+            border.color: SettingsTheme.borderColorLight
+            border.width: 1
 
-    Button {
-        id: okButton
-        width: 79
-        height: 23
-        text: qsTr("OK")
-        anchors.right: cancleButton.left
-        anchors.bottom: parent.bottom
-        anchors.rightMargin: 6
-        anchors.bottomMargin: 16
-    }
+            ColumnLayout {
+                anchors.fill: parent
+                anchors.margins: 16
+                spacing: 8
 
-    Button {
-        id: cancleButton
-        width: 100
-        height: 23
-        text: qsTr("Cancle")
-        anchors.right: parent.right
-        anchors.bottom: parent.bottom
-        anchors.rightMargin: 16
-        anchors.bottomMargin: 16
+                Text {
+                    text: qsTr("Configuration Management")
+                    font.pixelSize: 14
+                    font.bold: true
+                    color: SettingsTheme.textPrimary
+                    Layout.fillWidth: true
+                }
+
+                Text {
+                    text: qsTr("Load or save your complete configuration including all connections and their settings.")
+                    font.pixelSize: 12
+                    color: SettingsTheme.textSecondary
+                    wrapMode: Text.WordWrap
+                    Layout.fillWidth: true
+                }
+            }
+        }
+
+        Rectangle {
+            Layout.fillWidth: true
+            radius: SettingsTheme.radius.medium
+            color: SettingsTheme.cardBackground
+            border.color: SettingsTheme.borderColorLight
+            border.width: 1
+
+            ColumnLayout {
+                anchors.fill: parent
+                anchors.margins: SettingsTheme.margins.medium
+                spacing: SettingsTheme.spacing.small
+
+                Text {
+                    text: qsTr("UI Style")
+                    font.pixelSize: SettingsTheme.fontSize.large
+                    font.bold: true
+                    color: SettingsTheme.textPrimary
+                    Layout.fillWidth: true
+                }
+
+                Text {
+                    text: qsTr("Choose the Qt Quick Controls style used throughout the application.")
+                    font.pixelSize: SettingsTheme.fontSize.medium
+                    color: SettingsTheme.textSecondary
+                    wrapMode: Text.WordWrap
+                    Layout.fillWidth: true
+                }
+
+                ComboBox {
+                    id: controlsStyleCombo
+                    Layout.fillWidth: true
+                    model: settings_menu.availableControlStyles
+                    currentIndex: settings_menu.selectedStyleIndex
+                    onActivated: function(index) {
+                        if (index < 0 || index >= settings_menu.availableControlStyles.length)
+                            return
+                        var styleName = settings_menu.availableControlStyles[index]
+                        if (uiSettingsStore.controlsStyle !== styleName)
+                            uiSettingsStore.controlsStyle = styleName
+                        settings_menu.selectedStyleIndex = index
+                    }
+                }
+
+                Text {
+                    text: qsTr("Restart required for style changes to take effect.")
+                    font.pixelSize: SettingsTheme.fontSize.small
+                    color: SettingsTheme.textSecondary
+                    Layout.fillWidth: true
+                }
+            }
+        }
+
+        // Spacer
+        Item {
+            Layout.fillHeight: true
+        }
+
+        // Action Buttons
+        ColumnLayout {
+            Layout.fillWidth: true
+            spacing: SettingsTheme.spacing.medium
+
+            AppButton {
+                id: loadConfigButton
+                text: qsTr("Load Configuration")
+                icon.name: "document-open"
+                Layout.fillWidth: true
+                Layout.preferredHeight: SettingsTheme.heights.button
+            }
+
+            AppButton {
+                id: saveConfigButton
+                text: qsTr("Save Configuration")
+                icon.name: "document-save"
+                Layout.fillWidth: true
+                Layout.preferredHeight: SettingsTheme.heights.button
+            }
+
+            // Separator
+            Rectangle {
+                Layout.fillWidth: true
+                height: 1
+                color: SettingsTheme.borderColor
+                Layout.topMargin: 8
+                Layout.bottomMargin: 8
+            }
+
+            AppButton {
+                id: closeButton
+                text: qsTr("Close")
+                Layout.fillWidth: true
+                Layout.preferredHeight: SettingsTheme.heights.button
+                backgroundColor: AppTheme.buttons.neutral.background
+                hoverBackgroundColor: AppTheme.buttons.neutral.hover
+                pressedBackgroundColor: AppTheme.buttons.neutral.pressed
+                borderColor: AppTheme.buttons.neutral.border
+                textColor: AppTheme.buttons.neutral.text
+                boldText: false
+            }
+        }
+
+
     }
 }
-
-/*##^##
-Designer {
-    D{i:0;autoSize:true;formeditorZoom:0.66;height:480;width:640}D{i:1}D{i:2}D{i:3}D{i:4}
-D{i:5}D{i:6}D{i:7}D{i:8}
-}
-##^##*/
-

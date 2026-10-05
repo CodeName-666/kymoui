@@ -1,181 +1,65 @@
 import QtQuick 6.4
+import QtQuick.Dialogs
 import Backend 1.0
 
-import "SerialSettings"
-import "TelnetSettings"
-import "TestSettings"
-
 SettingsUi {
-
     id: settings_menu
-    property var old_settings: ({})
-    property var old_interface: ({})
 
-    /*******************************************************************
-     * EVENT
-     ******************************************************************/
+    FileDialog {
+        id: saveConfigDialog
+        fileMode: FileDialog.SaveFile
+        nameFilters: ["JSON Config files (*.json)"]
+        defaultSuffix: "json"
+        onAccepted: settings_menu.saveConfigToFile(selectedFile)
+    }
+
+    FileDialog {
+        id: loadConfigDialog
+        fileMode: FileDialog.OpenFile
+        nameFilters: ["JSON Config files (*.json)"]
+        onAccepted: settings_menu.loadConfigFromFile(selectedFile)
+    }
+
     Component.onCompleted: {
-        Logger.log_debug("SettingsUi Completed")
-        set_interface(interfaceComboBox.displayText)
+        Logger.log_debug("Settings: Component completed")
     }
 
-    /*******************************************************************
-     * EVENT
-     ******************************************************************/
-    interfaceComboBox.onActivated:
-    {
-        set_interface(interfaceComboBox.displayText)
-    }
-
-    /*******************************************************************
-     * FUNCTION
-     ******************************************************************/
-    function get_interface_by_name(interface_name)
-    {
-        switch(interface_name)
-        {
-        case "Serial":
-            return serialSettings;
-        case "Telnet":
-            return telnetSettings;
-        case "Test":
-            return testSettings;
-        default:
-            return undefined
-
+    onVisibleChanged: {
+        if (visible) {
+            Logger.log_debug("Settings: Config Management Dialog opened")
         }
     }
 
-    /*******************************************************************
-     * FUNCTION
-     ******************************************************************/
-    function set_interface(interface_name)
-    {
+    saveConfigButton.onClicked: {
+        Logger.log_info("Settings: Save config button clicked")
+        saveConfigDialog.open()
+    }
 
-        switch(interface_name)
-        {
-        case "Serial":
-            telnetSettings.visible = false;
-            serialSettings.visible = true;
-            testSettings.visible = false;
-            break;
-        case "Telnet":
-            telnetSettings.visible = true;
-            serialSettings.visible = false;
-            testSettings.visible = false;
-            break;
-        case "Test":
-            telnetSettings.visible = false;
-            serialSettings.visible = false;
-            testSettings.visible = true;
-            break
+    loadConfigButton.onClicked: {
+        Logger.log_info("Settings: Load config button clicked")
+        loadConfigDialog.open()
+    }
 
-        default:
-            Logger.log_error("SettingsUi: Invalid Settingsoption...")
+    closeButton.onClicked: {
+        Logger.log_debug("Settings: Close button clicked")
+        settings_menu.visible = false
+    }
+
+    function saveConfigToFile(fileUrl) {
+        Logger.log_info("Settings: Saving configuration to " + fileUrl)
+        if (Backend.save_configuration_to_file(fileUrl)) {
+            Logger.log_info("Settings: Configuration exported successfully")
+        } else {
+            Logger.log_error("Settings: Configuration export failed")
         }
     }
 
-    /*******************************************************************
-     * FUNCTION
-     ******************************************************************/
-    function backup_settings()
-    {
-        old_interface = interfaceComboBox.currentText
-        old_settings = get_settings(interfaceComboBox.currentText);
-    }
-
-    /*******************************************************************
-     * FUNCTION
-     ******************************************************************/
-    function update_com_ports(new_com_ports)
-    {   
-        Logger.log_info("New COM Ports detected:");
-        for (let i = 0; i < new_com_ports.length; i++) {
-            Logger.log_info("COM-Port: " + new_com_ports[i]);
+    function loadConfigFromFile(fileUrl) {
+        Logger.log_info("Settings: Loading configuration from " + fileUrl)
+        if (Backend.load_configuration_from_file(fileUrl)) {
+            Logger.log_info("Settings: Configuration imported successfully")
+        } else {
+            Logger.log_error("Settings: Configuration import failed")
         }
-        serialSettings.comComboBox.model = new_com_ports
-    }
-
-    /*******************************************************************
-     * FUNCTION
-     ******************************************************************/
-    function restore_settings()
-    {
-        set_interface(old_interface);
-        set_settings(old_interface, old_settings);
-    }
-
-
-    /*******************************************************************
-     * FUNCTION
-     ******************************************************************/
-    function get_settings(interface_name)
-    {
-        var ui = get_interface_by_name(interface_name);
-
-        if (ui !== undefined)
-        {
-            return ui.get_settings()
-        }
-        else
-        {
-            Logger.log_error("Invalid Configuration....")
-            return false
-        }
-    }
-
-    /*******************************************************************
-     * FUNCTION
-     ******************************************************************/
-    function set_settings(interface_name, settings)
-    {
-        var ui = get_interface_by_name(interface_name)
-
-        if(ui !== undefined)
-        {
-            return ui.set_settings(settings);
-        }
-        else
-        {
-            Logger.log_error("Invalid Configuration....")
-            return false
-        }
-    }
-
-    /*******************************************************************
-     * FUNCTION
-     ******************************************************************/
-    function set_combobox(combobox, txt, type = "txt")
-    {
-         var idx = combobox.find(txt, Qt.MatchExactly);
-         interfaceComboBox.currentIndex = idx;
-    }
-
-    /*******************************************************************
-     * FUNCTION
-     ******************************************************************/
-    function setup(settings) {
-        // Settings for available interfaces
-        var interface_model = settings["interfaces"];
-        interfaceComboBox.model = interface_model;
-
-        // Get DATA of Serial settings data Models
-        //var serial_config = settings["serial"];
-        //var data_size_model = serial_config["dataBits"];
-        //var parity_bits_model = serial_config["parityBits"];
-        //var stop_bits_model = serial_config["stopBits"];
-        // Set DATA of Serial settings data Models
-        //serialSettings.dataSizeComboBox.model = data_size_model;
-        //serialSettings.parityComboBox.model = parity_bits_model;s
-        //serialSettings.stopBitsCombo.model = stop_bits_model;
-
-        Logger.log_debug("Settings Setup")
-        return true
     }
 }
-
-/*##^##
-Designer {
-    D{i:0;autoSize:true;height:480;width:640}
-}
-##^##*/

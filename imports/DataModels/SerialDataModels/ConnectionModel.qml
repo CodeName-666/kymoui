@@ -12,6 +12,10 @@ ListModel
         name: "Telnet"
     }
     ListElement {
+        val: "MQTT"
+        name: "MQTT"
+    }
+    ListElement {
         val: "TEST"
         name: "Test"
     }

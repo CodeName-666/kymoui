@@ -1,0 +1,3 @@
+module Models
+ChartLineModel 1.0 ChartLineModel.qml
+singleton ChartLineModelSingleton 1.0 ChartLineModelSingleton.qml

@@ -1,70 +1,55 @@
-import QtQuick 2.12
+import QtQuick 6.4
 import QtQuick.Controls 6.4
 import QtQuick.Layouts 1.15
+import SettingsCommon 1.0
 
 Item {
     id: telnet_settings
     property alias portInput: portInput
     property alias ipInput: ipInput
-    implicitHeight: 120
-    implicitWidth: 350
 
-    Rectangle {
+    ColumnLayout {
         anchors.fill: parent
-        color: "#b5b0a7"
+        anchors.margins: SettingsTheme.margins.medium
+        spacing: SettingsTheme.spacing.medium
 
-        ColumnLayout {
-            anchors.fill: parent
-            anchors.rightMargin: 5
-            anchors.leftMargin: 5
-            anchors.bottomMargin: 5
-            anchors.topMargin: 5
-            spacing: 5
+        GridLayout {
+            Layout.fillWidth: true
+            columns: 2
+            columnSpacing: SettingsTheme.spacing.medium
+            rowSpacing: SettingsTheme.spacing.medium
 
-            GridLayout {
-                Layout.fillHeight: true
-                Layout.fillWidth: true
-                columns: 2
-                Text {
-                    text: "IP-Adress/URL:"
-                    font.bold: true
-                    Layout.alignment: Qt.AlignLeft
-                }
-                TextField {
-                    id: ipInput
-                    Layout.fillWidth: true
-                }
-
-                Text {
-                    text: "Port:"
-                    font.bold: true
-                }
-
-                TextField {
-                    id: portInput
-                    Layout.fillWidth: true
-
-                }
-
+            Label {
+                text: qsTr("IP-Address/URL:")
+                font.pixelSize: SettingsTheme.fontSize.medium
+                color: SettingsTheme.textLabel
             }
 
-            Item {
-                id: spacer
+            TextField {
+                id: ipInput
                 Layout.fillWidth: true
-                Layout.fillHeight: true
-                //Rectangle {
-                //    anchors.fill: parent
-                //    color: "#ffaaaa"
-                //}
+                Layout.preferredHeight: SettingsTheme.heights.input
+                placeholderText: qsTr("e.g. 192.168.1.100 or hostname")
             }
+
+            Label {
+                text: qsTr("Port:")
+                font.pixelSize: SettingsTheme.fontSize.medium
+                color: SettingsTheme.textLabel
+            }
+
+            TextField {
+                id: portInput
+                Layout.fillWidth: true
+                Layout.preferredHeight: SettingsTheme.heights.input
+                placeholderText: qsTr("e.g. 23")
+                inputMethodHints: Qt.ImhDigitsOnly
+            }
+        }
+
+        Item {
+            Layout.fillWidth: true
+            Layout.fillHeight: true
         }
     }
 }
-
-/*##^##
-Designer {
-    D{i:0;autoSize:true;height:120;width:350}D{i:4}D{i:5}D{i:6}D{i:7}D{i:3}D{i:8}D{i:2}
-D{i:1}
-}
-##^##*/
-

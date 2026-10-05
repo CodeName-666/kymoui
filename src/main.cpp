@@ -28,17 +28,69 @@
 ****************************************************************************/
 
 #include <QGuiApplication>
+#include <QCoreApplication>
 #include <QQmlApplicationEngine>
 #include <QApplication>
+#include <QDir>
+#include <QFileInfo>
+#include <QFile>
+#include <QDebug>
+#include <QSettings>
+#include <QQuickStyle>
 
 #include "app_environment.h"
 #include "import_qml_plugins.h"
 
+namespace {
+
+void ensureQuickControlsConfig()
+{
+    const QString appDir = QCoreApplication::applicationDirPath();
+    const QStringList candidates = {
+        QDir(appDir).filePath("qtquickcontrols2.conf"),
+        QDir(appDir).filePath("../qtquickcontrols2.conf"),
+        QDir(appDir).filePath("../Resources/qtquickcontrols2.conf"),
+        QDir(appDir).filePath("../qml/qtquickcontrols2.conf"),
+        QDir(appDir).filePath("../../qml/qtquickcontrols2.conf")
+    };
+
+    for (const QString &path : candidates) {
+        if (QFileInfo::exists(path)) {
+            qputenv("QT_QUICK_CONTROLS_CONF", QFile::encodeName(path));
+            return;
+        }
+    }
+
+    qWarning() << "qtquickcontrols2.conf not found in expected locations. "
+                  "Qt Quick Controls will fall back to default styling.";
+}
+
+QString resolveControlsStyle()
+{
+    QSettings settings;
+    const QString stored = settings.value(QStringLiteral("ui/controlsStyle"),
+                                          QStringLiteral("Fusion")).toString();
+    if (stored.isEmpty())
+        return QStringLiteral("Fusion");
+    return stored;
+}
+
+}
+
 int main(int argc, char *argv[])
 {
+    QCoreApplication::setOrganizationName(QStringLiteral("KymoStudio"));
+    QCoreApplication::setOrganizationDomain(QStringLiteral("kymotrace.com"));
+    QCoreApplication::setApplicationName(QStringLiteral("KymoStudio"));
+
     set_qt_environment();
 
+    const QString controlsStyle = resolveControlsStyle();
+    qputenv("QT_QUICK_CONTROLS_STYLE", controlsStyle.toUtf8());
+    QQuickStyle::setStyle(controlsStyle);
+
     QGuiApplication app(argc, argv);
+    ensureQuickControlsConfig();
 
     QQmlApplicationEngine engine;
     const QUrl url(u"qrc:Main/main.qml"_qs);

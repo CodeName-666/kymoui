@@ -2,6 +2,7 @@ import QtQuick 6.4
 import QtQuick.Controls 6.4
 import QtQuick.Layouts 1.15
 import QtQuick.Dialogs
+import SettingsCommon 1.0
 
 Item {
     property alias colorDialog: colorDialog
@@ -15,90 +16,68 @@ Item {
         title: "Please choose a color"
     }
 
-    Rectangle {
+    ColumnLayout {
         anchors.fill: parent
-        color: "#b5b0a7"
+        anchors.margins: SettingsTheme.margins.medium
+        spacing: SettingsTheme.spacing.medium
 
-        ColumnLayout {
-            anchors.fill: parent
-            anchors.rightMargin: 5
-            anchors.leftMargin: 5
-            anchors.bottomMargin: 5
-            anchors.topMargin: 5
-            spacing: 5
+        GridLayout {
+            Layout.fillWidth: true
+            columns: 2
+            columnSpacing: SettingsTheme.spacing.medium
+            rowSpacing: SettingsTheme.spacing.medium
 
-            GridLayout {
-                Layout.columnSpan: 1
-                Layout.rowSpan: 1
-                Layout.minimumWidth: 0
-                Layout.fillHeight: true
+            Label {
+                text: qsTr("Name:")
+                font.pixelSize: SettingsTheme.fontSize.medium
+                color: SettingsTheme.textLabel
+            }
+            TextField {
+                id: nameInput
                 Layout.fillWidth: true
-                columns: 2
-                Text {
-                    text: "Name:"
-                    font.bold: true
-                    Layout.alignment: Qt.AlignLeft
-                }
-                TextField {
-                    id: nameInput
-                    Layout.fillWidth: true
-                }
+                Layout.preferredHeight: SettingsTheme.heights.input
+                placeholderText: qsTr("Test name")
+            }
 
-                Text {
-                    id: colorText
-                    text: "Color:"
-                    font.bold: true
-                }
+            Label {
+                id: colorText
+                text: qsTr("Color:")
+                font.pixelSize: SettingsTheme.fontSize.medium
+                color: SettingsTheme.textLabel
+            }
 
-                Rectangle {
-                    id: colorView
-                    color: "#00ffffff"
-                    border.width: 2
-                    border.color: "#ababab"
-                    Layout.preferredHeight: nameInput.height
-                    Layout.fillWidth: true
-                    MouseArea {
-                        id: colorButton
-                        anchors.fill: parent
-                    }
-                }
-
-                Text {
-                    text: "Line Type:"
-                    font.bold: true
-                    Layout.alignment: Qt.AlignLeft
-                }
-
-                ComboBox {
-                    id: typeCombo
-                    Layout.fillWidth: true
-                    model: ["Sinus", "Rectangle", "Ramp", "Line", "Random"]
-                }
-
-                Button {
-                    visible: false
-                    text: "Add"
-                    Layout.alignment: Qt.AlignHCenter | Qt.AlignVCenter
-                    Layout.fillWidth: true
-                }
-
-                Button {
-                    visible: false
-                    text: "Delete"
-                    Layout.alignment: Qt.AlignHCenter | Qt.AlignVCenter
-                    //Layout.fillWidth: true
+            Rectangle {
+                id: colorView
+                color: "#00ffffff"
+                border.width: 2
+                border.color: SettingsTheme.borderColor
+                Layout.preferredHeight: SettingsTheme.heights.input
+                Layout.fillWidth: true
+                radius: SettingsTheme.radius.small
+                MouseArea {
+                    id: colorButton
+                    anchors.fill: parent
+                    cursorShape: Qt.PointingHandCursor
                 }
             }
 
-            Item {
-                id: spacer
-                Layout.fillWidth: true
-                Layout.fillHeight: true
-                //Rectangle {
-                //    anchors.fill: parent
-                //    color: "#ffaaaa"
-                //}
+            Label {
+                text: qsTr("Line Type:")
+                font.pixelSize: SettingsTheme.fontSize.medium
+                color: SettingsTheme.textLabel
             }
+
+            ComboBox {
+                id: typeCombo
+                Layout.fillWidth: true
+                Layout.preferredHeight: SettingsTheme.heights.combobox
+                model: ["Sinus", "Rectangle", "Ramp", "Line", "Random", "Multi"]
+            }
+        }
+
+        Item {
+            Layout.fillWidth: true
+            Layout.fillHeight: true
         }
     }
 }

@@ -1,46 +1,64 @@
 import QtQuick 6.4
 import QtQuick.Controls 6.4
+import Common 1.0
+import SettingsCommon 1.0
 
 TestSettingUi {
 
+    property var baseHelper: BaseSettings {}
+
     colorDialog.onAccepted: {
-        colorView.color = colorDialog.selectedColor;
-        colorDialog.close();
+        colorView.color = colorDialog.selectedColor
+        colorDialog.close()
     }
 
-    colorDialog.onRejected: colorDialog.close();
+    colorDialog.onRejected: colorDialog.close()
 
-    colorButton.onClicked: colorDialog.open();
+    colorButton.onClicked: colorDialog.open()
 
-    /*******************************************************************
-     * FUNCTION
-     ******************************************************************/
-    function get_settings()
-    {
-        var retVal =  {
-            "name": qsTr(nameInput.text),
-            "color": colorView.color,
-            "type": qsTr(typeCombo.currentText)
-           }
-        return retVal;
+    function getSettings() {
+        const name = nameInput.text.trim()
+        const color = colorView.color
+        const type = typeCombo.currentText
+
+        // Validate name
+        if(!name || name === "") {
+            Logger.log_error("TestSettings: Name cannot be empty")
+            return baseHelper.validationResult(false, "Please enter a name for the test")
+        }
+
+        // Validate color (check if it's a valid color)
+        if(!color || color.toString() === "#00000000" || color.toString() === "#00ffffff") {
+            Logger.log_error("TestSettings: Invalid color selected")
+            return baseHelper.validationResult(false, "Please select a color")
+        }
+
+        // Validate type
+        if(!type || type === "") {
+            Logger.log_error("TestSettings: No line type selected")
+            return baseHelper.validationResult(false, "Please select a line type")
+        }
+
+        Logger.log_info("TestSettings: Valid settings - Name: " + name + ", Type: " + type)
+        return baseHelper.validationResult(true, "", {
+            "name": name,
+            "color": color,
+            "type": type
+        })
     }
 
-    /*******************************************************************
-     * FUNCTION
-     ******************************************************************/
-    function set_settings(settings)
-    {
-        nameInput.text = settings["name"];
-        colorView.color = settings["color"];
-        set_combobox(testSettings.typeCombo,settings["type"]);
+    function setSettings(settings) {
+        if(!Validators.isValid(settings))
+            return
+
+        nameInput.text = baseHelper.getProperty(settings, "name", "")
+        var settingsColor = baseHelper.getProperty(settings, "color", "#ff4444")
+        colorView.color = settingsColor
+        baseHelper.setCombobox(typeCombo, baseHelper.getProperty(settings, "type", "Multi"), "text")
     }
 
-    /*******************************************************************
-     * FUNCTION
-     ******************************************************************/
-    function set_combobox(combobox, txt, type = "txt")
-    {
-         var idx = combobox.find(txt, Qt.MatchExactly);
-         //interfaceComboBox.currentIndex = idx;
+    function isValid() {
+        var settings = getSettings()
+        return settings.valid === true
     }
 }

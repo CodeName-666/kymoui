@@ -1,149 +1,62 @@
 .pragma library
-.import QtQuick 6.4 as Quick
-.import QtQml 2.15 as Qml
-.import QtCharts 2.3 as QuickCharts
-.import "../BackendLogger.js" as Logger
 
-
-
-var python_backend = undefined
-
-
-/*=================================================================*/
-/*=== Internal Used Functions =====================================*/
-/*=================================================================*/
-
-/**
- *
- */
-function internal_setup(py_backend, events) {
-
-   if(python_backend !== undefined)
-    {
-        python_backend = py_backend;
-        connect_signals(events);
-
-        python_backend.log_info("Setup Done");
-        python_backend.backend_setup_done = true ;
-    } else {
-        /* TBD */
-    }
+function has_backend() {
+    return typeof Backend !== 'undefined'
 }
 
-/*******************************************************************
- * INTERNAL FUNCTION
- ******************************************************************/
-function connect_signals(events) {
-
-    python_backend.new_graph.connect(events.newGraph);
-    python_backend.scrollRight.connect(events.scrollRight);
-    python_backend.ui_setup.connect(events.uiSetup);
-    python_backend.com_port_update.connect(events.com_port_update);
-
-}
-
-
-/*******************************************************************
- * FUNCTION
- ******************************************************************/
 function set_settings(interface_type, settings) {
-    python_backend.set_settings(interface_type, settings)
-
+    if (has_backend() && Backend.set_settings)
+        return Backend.set_settings(interface_type, settings)
+    console.warn("BackendProvider.set_settings: Backend unavailable")
+    return false
 }
 
-/*******************************************************************
- * FUNCTION
- ******************************************************************/
 function get_settings(interface_type) {
-    return python_backend.get_settings()
+    if (has_backend() && Backend.get_settings)
+        return Backend.get_settings(interface_type)
+    console.warn("BackendProvider.get_settings: Backend unavailable")
+    return null
 }
 
-/*******************************************************************
- * FUNCTION SLOT
- ******************************************************************/
 function settings_valid() {
-    return python_backend.settings_valid();
+    if (has_backend() && Backend.settings_valid)
+        return Backend.settings_valid()
+    console.warn("BackendProvider.settings_valid: Backend unavailable")
+    return false
 }
 
-/*******************************************************************
- * FUNCTION SLOT
- ******************************************************************/
- function add_graph(name, graph) {
-    python_backend.add_graph(name, graph);
+function connect() {
+    if (has_backend()) {
+        if (Backend.connect)
+            return Backend.connect()
+        if (Backend.connectTo)
+            return Backend.connectTo("")
+    }
+    console.warn("BackendProvider.connect: Backend unavailable")
+    return false
 }
 
+function is_connect() {
+    if (has_backend()) {
+        if (Backend.is_connect)
+            return Backend.is_connect()
+        if (Backend.connected)
+            return Backend.connected()
+    }
+    return false
+}
 
-/*******************************************************************
- * FUNCTION SLOT
- ******************************************************************/
 function set_plot_area(area) {
-    python_backend.plot_area = area
+    if (has_backend() && Backend.set_plot_area)
+        Backend.set_plot_area(area)
 }
 
+function add_graph(name, graph) {
+    if (has_backend() && Backend.add_graph)
+        Backend.add_graph(name, graph)
+}
 
-/*******************************************************************
- * FUNCTION
- ******************************************************************/
 function set_axis(xAxis, yAxis) {
-    python_backend.xAxis = xAxis;
-    python_backend.yAxis = yAxis;
+    if (has_backend() && Backend.set_axis)
+        Backend.set_axis(xAxis, yAxis)
 }
-
-/**
- * @brief 
- * @param {boolean} status 
- */
-function ui_setup_status(status) {
-    python_backend.ui_setup_done = status
-}
-
-/**
- * @brief Log Error Slot
- * @param {String} msg Message which explains the error
- * 
- * Slot to log an error.
- */
-function log_error(msg) {
-    python_backend.log_error(msg);
-}
-
-/**
- * @brief Log Warning Slot
- * @param {String} msg Message which explains the error
- * 
- * Function to log an warning.
- */
-function log_warning(msg) {
-    python_backend.log_warning(msg);
-}
-
-/**
- * @brief Log Info Slot
- * @param {String} msg Message which contains the info
- * 
- * Function to log an info.
- */
-function log_info(msg) {
-    python_backend.log_info(msg);
-}
-
-/**
- * @brief Log Debug Slot
- * @param {String} msg Message which contains the debug message
- * 
- * Function to log an debug.
- */
-function log_debug(msg) {
-    python_backend.log_debug(msg);
-}
-
-/**
- * @brief Logging Stack Sltt
- * @param {String} msg Stack of QML code
- * 
- * Function to log an info.
- */
-function log_stack(stack) {
-    python_backend.log_qml_stack(stack)
-}
-

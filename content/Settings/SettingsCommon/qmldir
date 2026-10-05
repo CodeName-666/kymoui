@@ -1,0 +1,6 @@
+module SettingsCommon
+singleton SettingsTheme 1.0 SettingsTheme.qml
+BaseSettings 1.0 BaseSettings.qml
+SettingsCard 1.0 SettingsCard.qml
+FormField 1.0 FormField.qml
+ValidatedTextField 1.0 ValidatedTextField.qml

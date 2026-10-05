@@ -33,5 +33,11 @@ qt6_add_qml_module(content
         Footer/Footer.qml
         ChartWindow/ChartWindowUi.ui.qml
         ChartWindow/ChartWindow.qml
+        Workspace/WorkspaceController.qml
+        Workspace/ChartWorkspace.qml
+        Workspace/WorkspaceDialogs.qml
+        Theme/AppTheme.qml
+        components/AppButton.qml
+        components/AppTextField.qml
 
 )

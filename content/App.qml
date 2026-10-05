@@ -1,83 +1,88 @@
 import QtQuick 6.4
 import Common 1.0
 import Backend 1.0
+import KymoUi 1.0
+import "Workspace"
 
 
 AppUi {
+    id: appRoot
+    objectName: "appRoot"
 
+    property var simulatorBackend: null
 
-    connectButton.onClicked:
-    {
-        BackendInterface.connect()
+    workspaceController: WorkspaceController {
+        id: workspace
+        objectName: "workspaceController"
     }
 
+
     Component.onCompleted: {
+        Logger.log_info("App: Component.onCompleted - Initializing application")
+        appController = App.create()
+        Logger.log_debug("App: appController created, initial current_interface: " + appController.current_interface)
+
+        var selectedBackend = null
         if(typeof Backend !== 'undefined')
         {
-            Logger.setup(Provider,false);
-            Logger.log_debug("App Backend Init");
-            AppApi.app_setup("PYTHON_BACKEND", this, Backend);
+            Logger.log_info("App: Using Backend interface");
+            appController.setup(appRoot, Backend);
+            selectedBackend = Backend
         }
         else
         {
-            Logger.setup(Simulator,false);
-            Logger.log_debug("App Simulatort Init");
-            AppApi.app_setup("BACKEND_SIMULATOR", this);
+            Logger.log_info("App: Using Simulator backend");
+            simulatorBackend = new Simulator.Simulator()
+            appController.setup(appRoot, simulatorBackend);
+            selectedBackend = simulatorBackend
         }
-        connect_signals();
+        workspaceController.initialize(appController, selectedBackend)
+        connectSignals();
+
+        Logger.log_info("App: Initialization completed");
+    }
+
+    Component.onDestruction: {
+        Logger.log_info("App: Component.onDestruction - Cleaning up")
+        disconnectSignals()
+        workspaceController.shutdown()
+        Logger.log_info("App: Cleanup completed")
+    }
 
 
-        Logger.log_debug("App Completed");
-      }
+    function connectSignals() {
+        if (Validators.isValid(appController) && Validators.isValidFunction(appController.events)) {
+            var events = appController.events()
+            if (Validators.isValid(events) && Validators.isValid(events.status_message)) {
+                events.status_message.connect(showStatusMessage)
+            }
+        }
+    }
 
+    function disconnectSignals() {
+        if (Validators.isValid(appController) && Validators.isValidFunction(appController.events)) {
+            var events = appController.events()
+            if (Validators.isValid(events) && Validators.isValid(events.status_message)) {
+                try { events.status_message.disconnect(showStatusMessage) } catch (e) {}
+            }
+        }
+    }
 
-    function connect_signals() {
-        settings.okButton.clicked.connect(accept_settings)
-        settings.cancleButton.clicked.connect(cancle_settings)
-
-
-        toolbar.settingsButton.triggered.connect(open_settings)
-
-        BackendInterface.events().com_port_update.connect(settings.update_com_ports)
+    function showStatusMessage(level, message)
+    {
+        if(footer && footer.showStatus)
+            footer.showStatus(level, message)
     }
 
     /*******************************************************************
-     * FUNCTION
+     * KEYBOARD SHORTCUTS - Floating Windows
      ******************************************************************/
-    function accept_settings()
-    {
-        var cSettings =settings.get_settings(settings.interfaceComboBox.currentText);
-
-        Logger.log_info("Accept Setting " + cSettings);
-
-        BackendInterface.set_settings(settings.interfaceComboBox.currentText,cSettings);
-        settingsPopup.close();
-    }
-
-    /*******************************************************************
-     * FUNCTION
-     ******************************************************************/
-    function cancle_settings()
-    {
-        Logger.log_info("cancel settings");
-        settings.restore_settings();
-        settingsPopup.close();
-    }
-
-    /*******************************************************************
-     * FUNCTION
-     ******************************************************************/
-    function open_settings()
-    {
-        settings.backup_settings();
-        settingsPopup.open();
-    }
-
-    /*******************************************************************
-     * FUNCTION
-     ******************************************************************/
-    function setConfig()
-    {
-
+    Shortcut {
+        sequence: "Ctrl+N"
+        onActivated: {
+            var timestamp = Date.now()
+            var chartId = "float_xy_" + timestamp
+            workspaceController.createChart("xy_line", "XY Chart " + timestamp, chartId, 100, 100, 800, 600)
+        }
     }
 }

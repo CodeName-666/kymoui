@@ -1,5 +1,0 @@
-Module PlotterUi
-singleton Constants 1.0 Constants.qml
-DirectoryFontLoader 1.0 DirectoryFontLoader.qml
-Setup 1.0 Setup.js
-Rand 1.0 Random.js

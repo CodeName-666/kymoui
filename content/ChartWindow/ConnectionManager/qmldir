@@ -1,0 +1,10 @@
+module ConnectionManager
+
+ConnectionManagerDialog 1.0 ConnectionManagerDialog.qml
+NewConnectionDialog 1.0 NewConnectionDialog.qml
+EditConnectionDialog 1.0 EditConnectionDialog.qml
+ConnectionItem 1.0 ConnectionItem.qml
+SerialSettings 1.0 SerialSettings.qml
+MqttSettings 1.0 MqttSettings.qml
+TelnetSettings 1.0 TelnetSettings.qml
+TestSettings 1.0 TestSettings.qml

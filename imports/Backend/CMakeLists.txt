@@ -11,9 +11,7 @@ qt6_add_qml_module(Backend
         BackendEvents.qml
     RESOURCES
         Simulator.js
-        BackendSimulator.js
         BackendProvider.js
         BackendLogger.js
-        BackendInterface.js
 
 )

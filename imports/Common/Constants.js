@@ -1,6 +1,5 @@
 .pragma library
 
-const UNKOWN_INTERFACE = 0;
-const PYTHON_BACKEND = 1;
-const BACKEND_SIMULATOR = 2;
-var INTERFACES = ["UNKOWN", "PYTHON_BACKEND", "BACKEND_SIMULATOR"];
+var TX_SIGNAL_PATH = "../Backend/BackendTxSignals.qml"
+var RX_SIGNAL_PATH = "../Backend/BackendRxSignals.qml"
+var SIMULATOR_PATH = "imports/Backend/Simulator/SimulatorSignals.qml"

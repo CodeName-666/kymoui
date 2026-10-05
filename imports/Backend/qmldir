@@ -1,5 +1,4 @@
 Module Backend
-BackendInterface 1.0 BackendInterface.js
 Logger 1.0 BackendLogger.js
-Simulator 1.0 Simulator/BackendSimulator.js
+Simulator 1.0 Simulator/Simulator.js
 Provider 1.0 Python/BackendProvider.js
