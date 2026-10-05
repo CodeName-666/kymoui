@@ -1,39 +1,44 @@
 <p align="center">
+  <a href="README.md"><img alt="English" src="https://img.shields.io/badge/%F0%9F%8C%90-English-15123A"></a>
+  <a href="README.de.md"><img alt="Deutsch" src="https://img.shields.io/badge/%F0%9F%8C%90-Deutsch-A78BFA"></a>
+</p>
+
+<p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/images/kymotrace-logo-dark.svg">
     <img src="docs/images/kymotrace-logo-light.svg" alt="Kymotrace – Embedded Telemetry" width="480">
   </picture>
 </p>
 
-<h3 align="center">KymoUi · Die Qt-Quick-Oberfläche von KymoStudio</h3>
+<h3 align="center">KymoUi · The Qt Quick interface of KymoStudio</h3>
 
 <p align="center">
-  Qt-Design-Studio-Projekt der Benutzeroberfläche von <b>Kymotrace</b>.
+  Qt Design Studio project of the <b>Kymotrace</b> user interface.
 </p>
 
 ---
 
 > [!NOTE]
-> Die Oberfläche wird inzwischen direkt in
-> **[KymoStudio](https://github.com/CodeName-666/kymostudio)** unter `qml/`
-> weiterentwickelt. Dieses Repository bleibt als eigenständiges
-> Qt-Design-Studio-Projekt und als Historie der Oberfläche erhalten.
+> The interface is now developed directly in
+> **[KymoStudio](https://github.com/CodeName-666/kymostudio)** under `qml/`.
+> This repository remains as a standalone Qt Design Studio project and as the
+> history of the interface.
 
 <p align="center">
-  <img src="docs/images/kymostudio-workbench.png" alt="Die KymoStudio-Oberfläche mit Zeitverlauf und XY-Diagramm" width="900">
+  <img src="docs/images/kymostudio-workbench.png" alt="The KymoStudio interface with a time series and an XY chart" width="900">
 </p>
 
-## Was hier liegt
+## What is in here
 
-- **`content/`**: die Ansichten der Arbeitsfläche, also Diagrammfenster, Verbindungsdialoge, Seitenleisten und Werkzeugleiste
-- **`imports/KymoUi`**, **`imports/Common`**: das QML-Modul `KymoUi` mit gemeinsamen Komponenten und Konstanten
-- **`KymoUi.qmlproject`**: das Projekt zum Öffnen in Qt Design Studio
-- **`CMakeLists.txt`**, **`src/`**: Build als eigenständige Qt-6-Anwendung (`KymoUiApp`)
+- **`content/`**: the workspace views, i.e. chart windows, connection dialogs, sidebars and toolbar
+- **`imports/KymoUi`**, **`imports/Common`**: the QML module `KymoUi` with shared components and constants
+- **`KymoUi.qmlproject`**: the project to open in Qt Design Studio
+- **`CMakeLists.txt`**, **`src/`**: build as a standalone Qt 6 application (`KymoUiApp`)
 
-## Teil von Kymotrace
+## Part of Kymotrace
 
-| Projekt | Rolle |
+| Project | Role |
 |---|---|
-| [KymoStudio](https://github.com/CodeName-666/kymostudio) | Desktop-App: empfangen, darstellen, analysieren, exportieren |
-| [KymoCore](https://github.com/CodeName-666/kymocore) | portable C++11-Library für die Messwert-Übertragung |
-| [KymoProbe](https://github.com/CodeName-666/kymoprobe) | Firmware und Beispiele für ESP32, Arduino und STM32 |
+| [KymoStudio](https://github.com/CodeName-666/kymostudio) | desktop app: receive, display, analyse, export |
+| [KymoCore](https://github.com/CodeName-666/kymocore) | portable C++11 library for transmitting measurements |
+| [KymoProbe](https://github.com/CodeName-666/kymoprobe) | firmware and examples for ESP32, Arduino and STM32 |
