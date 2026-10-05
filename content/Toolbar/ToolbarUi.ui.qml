@@ -2,7 +2,7 @@ import QtQuick 6.4
 import QtQuick.Controls 6.4
 import QtQuick.Layouts 1.11
 
-import PlotterUi 1.0
+import KymoUi 1.0
 import DataModels.SerialDataModels 1.0
 import Common 1.0
 import Theme 1.0

@@ -35,8 +35,8 @@ ScrollView {
         TextField {
             id: channelField
             Layout.fillWidth: true
-            text: "plotter"
-            placeholderText: qsTr("e.g. can0, PCAN_USBBUS1 or plotter")
+            text: "kymo"
+            placeholderText: qsTr("e.g. can0, PCAN_USBBUS1 or kymo")
             color: "#ffffff"
         }
 

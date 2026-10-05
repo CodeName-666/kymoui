@@ -2,7 +2,7 @@ import QtQuick 6.4
 import QtQuick.Controls 6.4
 import QtCharts 2.3
 import Backend 1.0
-import PlotterUi 1.0
+import KymoUi 1.0
 import Common 1.0
 import "../Models"
 import "AddChartLineDialog"

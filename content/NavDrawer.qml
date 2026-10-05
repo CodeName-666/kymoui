@@ -642,7 +642,7 @@ Drawer {
         parent: Overlay.overlay
         anchors.centerIn: parent
 
-        title: qsTr("About Plotter")
+        title: qsTr("About KymoStudio")
         modal: true
         standardButtons: Dialog.Ok
 
@@ -662,7 +662,7 @@ Drawer {
             anchors.margins: 20
 
             Label {
-                text: qsTr("Plotter Application")
+                text: qsTr("KymoStudio – Kymotrace")
                 font.pixelSize: 24
                 font.bold: true
                 color: AppTheme.text.primary
@@ -696,7 +696,7 @@ Drawer {
             }
 
             Label {
-                text: qsTr("© 2025 Plotter Project")
+                text: qsTr("© 2025 Kymotrace")
                 font.pixelSize: 10
                 color: AppTheme.text.placeholder
                 Layout.alignment: Qt.AlignHCenter
